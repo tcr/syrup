@@ -39,6 +39,16 @@ Equivalent parse tree:
 
 ###
 
+# Macros
+
+code = """
+
+a = macro: [n] print: n
+a: 5 * 6
+a: [5 6 7]
+
+"""
+
 ###
 # Parser
 ###
@@ -197,7 +207,6 @@ base = new Scope
 
 	"eval": (f) ->
 		if f?.constructor == Array
-			#console.log 'Calling:', f[0], this
 			if typeof f[0] == 'string' then this[f[0]](f[1...]...)
 			else base.eval.call(this, f[0])(f[1...]...)
 		else if typeof f == 'string' then this[f]
@@ -207,18 +216,23 @@ base = new Scope
 		lscope = this
 		params = params[1...] # remove 'list' tag, auto-quote
 		return (args...) ->
-			#console.log 'Called function, scope is', this
-			
 			# evaluate params in original scope
 			map = {}
 			for p, i in params then map[p] = base.eval.call(this, args[i])
-
-			# evaluate func in original scope
+			# evaluate func in new scope
 			s = new Scope(lscope, map)
-			for expr in exprs[0...-1]
-				#console.log ' ! ', s, expr
-				base.eval.call(s, expr) 
-			#console.log ' _ ', s, exprs[exprs.length-1]
+			for expr in exprs[0...-1] then base.eval.call(s, expr) 
+			if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
+	"macro": (params, exprs...) ->
+		lscope = this
+		params = params[1...] # remove 'list' tag, auto-quote
+		return (args...) ->
+			# name params
+			map = {}
+			for p, i in params then map[p] = args[i]
+			# evaluate func in new scope
+			s = new Scope(lscope, map)
+			for expr in exprs[0...-1] then base.eval.call(s, expr) 
 			if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
 	"=": (n, e) -> this[n] = base.eval.call this, e
 	"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
