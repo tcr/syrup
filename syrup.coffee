@@ -1,5 +1,39 @@
 util = require('util')
 
+###
+
+Syrup, a syntactically-light LISP
+
+Syrup is whitespace-significant. Function calls are made as so:
+
+  defn: test []
+    print: "Cool language"
+
+Where a colon following an atom indicates all subsequent arguments
+are part of the list. This parse tree is equivalent to:
+
+  (defn test [] (print "Cool language"))
+
+Parentheses are for disambiguation, and are insignificant:
+
+  calc-fib: (n - 1) b (a + b)
+
+Commas are allowed, but not required in lists of arguments/literals.
+Array/list syntax is like JavaScript array literals:
+
+  [5 6 7 8]
+
+Arrays can't be invoked, as the above the above is equivalent to
+
+  list: 5 6 7 8
+
+Quoting is `. Infix notation is supported for arithmetic operations:
+
+(+: 5 6) is equal to (5 + 6)
+
+###
+
+
 # Anonymous functions
 
 code = """
@@ -13,19 +47,6 @@ print: test.
 
 # Fibonacci
 
-###
-Equivalent parse tree:
-
-(defn fib-trec (n)
-  (defn calc-fib (n a b)
-    (if (== n 0)
-      a
-      (calc-fib (- n 1) b (+ a b))
-  (calc-fib n 0 1))
-(print (fib-trec 10))
-
-###
-
 code = """
 
 defn: fib-trec [n]
@@ -38,6 +59,19 @@ defn: fib-trec [n]
 print: fib-trec: 10
 
 """
+
+###
+Equivalent parse tree:
+
+(defn fib-trec (n)
+  (defn calc-fib (n a b)
+    (if (== n 0)
+      a
+      (calc-fib (- n 1) b (+ a b))
+  (calc-fib n 0 1))
+(print (fib-trec 10))
+
+###
 
 ###
 # Parser
