@@ -1,11 +1,10 @@
 util = require('util')
 
-
 # Anonymous functions
 
 code = """
 
-defn: test []
+test = fn: []
  (fn: [f] f: `[b c]):
   fn: [x] concat: `a x
 print: test.
@@ -16,12 +15,12 @@ print: test.
 
 code = """
 
-defn: fib-trec [n]
-  defn: calc-fib [n a b]
-    if: (n == 0)
-      a 
-      calc-fib: (n - 1) b (a + b)
-  calc-fib: n 0 1
+fib-trec = fn: [n]
+	calc-fib = fn: [n a b]
+		if: (n == 0)
+			a 
+			calc-fib: (n - 1) b (a + b)
+	calc-fib: n 0 1
 
 print: fib-trec: 10
 
@@ -221,10 +220,7 @@ base = new Scope
 				base.eval.call(s, expr) 
 			#console.log ' _ ', s, exprs[exprs.length-1]
 			if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
-	"def": (n, e) -> this[n] = base.eval.call this, e
-	"defn": (n, params, exprs...) ->
-		this[n] = base.fn.call this, params, exprs...
-
+	"=": (n, e) -> this[n] = base.eval.call this, e
 	"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
 	"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
 
