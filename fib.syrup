@@ -1,0 +1,18 @@
+fib-trec = fn: [n]
+	calc-fib = fn: [n a b]
+		if: (n == 0)
+			a 
+			calc-fib: (n - 1) b (a + b)
+	calc-fib: n 0 1
+
+print: fib-trec: 10
+
+# Equivalent parse tree:
+# 
+# (defn fib-trec (n)
+#  (defn calc-fib (n a b)
+#    (if (== n 0)
+#      a
+#      (calc-fib (- n 1) b (+ a b))
+#  (calc-fib n 0 1))
+# (print (fib-trec 10))

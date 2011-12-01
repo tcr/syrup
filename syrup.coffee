@@ -1,53 +1,5 @@
-util = require('util')
-
-# Anonymous functions
-
-code = """
-
-test = fn: []
- (fn: [f] f: `[b c]):
-  fn: [x] concat: `a x
-print: test.
-
-"""
-
-# Fibonacci
-
-code = """
-
-fib-trec = fn: [n]
-	calc-fib = fn: [n a b]
-		if: (n == 0)
-			a 
-			calc-fib: (n - 1) b (a + b)
-	calc-fib: n 0 1
-
-print: fib-trec: 10
-
-"""
-
-###
-Equivalent parse tree:
-
-(defn fib-trec (n)
-  (defn calc-fib (n a b)
-    (if (== n 0)
-      a
-      (calc-fib (- n 1) b (+ a b))
-  (calc-fib n 0 1))
-(print (fib-trec 10))
-
-###
-
-# Macros
-
-code = """
-
-a = macro: [n] print: n
-a: 5 * 6
-a: [5 6 7]
-
-"""
+util = require 'util'
+fs = require 'fs'
 
 ###
 # Parser
@@ -68,118 +20,126 @@ chunker =
 	bool: /^true|false/
 	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	number: /^[0-9+]+/
+	comment: /^\#[^\n]+/
 
-c2 = code.replace /\r/g, ''
-tokens = []
-while c2.length
-	m = null
-	for k, patt of chunker
-		if m = patt.exec(c2)
-				c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
-				tokens.push [k, m[0]]
-				break
-	unless m then throw new Error 'Invalid code'
+parse = (code) -> 
+	c2 = code.replace /\r/g, ''
+	tokens = []
+	while c2.length
+		m = null
+		for k, patt of chunker
+			if m = patt.exec(c2)
+					c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
+					tokens.push [k, m[0]]
+					break
+		unless m then throw new Error 'Invalid code'
 
-res = []; stack = [[res, 0]]; indent = 0; i = 0
+	res = []; stack = [[res, -1]]; indent = 0; i = 0
 
-parseList = ->
-	while i < tokens.length
-		if tokens[i][0] == 'indent'
-			if tokens[i+1]?[0] == 'indent'
+	parseList = ->
+		while i < tokens.length
+			if tokens[i][0] == 'indent'
+				if tokens[i+1]?[0] == 'indent'
+					token = tokens[i]; i++
+					continue
+					# indented on newlines, part of list
+				if stack[stack.length-1]?[1] < tokens[i][1].length-1
+					token = tokens[i]; i++
+					indent = token[1].length-1
+				else
+					break
+			if tokens[i]?[0] == 'comma'
 				token = tokens[i]; i++
-				continue
-			# indented on newlines, part of list
-			if stack[stack.length-1]?[1] < tokens[i][1].length	
-				token = tokens[i]; i++
-				indent = token[1].length
-			else
-				return
-		if tokens[i]?[0] == 'comma'
+			if not parseExpression() then break
+
+	parseExpression = ->
+		#while tokens[i]?[0] == 'indent' and tokens[i+1]?[0] == 'indent'
+		#	token = tokens[i]; i++
+		#	if tokens[i]?[0] == 'indent'
+		#		continue
+			#indent = token[1].length
+			#stack.pop() while stack[stack.length-1]?[1] >= indent
+		#while tokens[i]?[0] == 'indent'
+		# if tokens[i]?[1].length != 1 then return false
+		# token = tokens[i]; i++
+		
+		return unless tokens[i]
+
+		while tokens[i][0] == 'comment'
 			token = tokens[i]; i++
-		if not parseExpression() then break
 
-parseExpression = ->
-	#while tokens[i]?[0] == 'indent' and tokens[i+1]?[0] == 'indent'
-	#	token = tokens[i]; i++
-	#	if tokens[i]?[0] == 'indent'
-	#		continue
-		#indent = token[1].length
-		#stack.pop() while stack[stack.length-1]?[1] >= indent
-	#while tokens[i]?[0] == 'indent'
-	# if tokens[i]?[1].length != 1 then return false
-	# token = tokens[i]; i++
-	
-	return unless tokens[i]
-	if tokens[i][0] == 'call'
-		token = tokens[i]; i++
-		stack[stack.length-1][0].push [token[1][0...-1]]
-	else if tokens[i][0] == 'callargs'
-		token = tokens[i]; i++
-		l = [token[1][0...-1]]
-		stack[stack.length-1][0].push l
-		stack.push [l, indent]
-		parseList()
-		stack.pop()
-	else if tokens[i][0] == 'quote'
-		token = tokens[i]; i++
-		l = ['quote']
-		stack[stack.length-1][0].push l
-		stack.push [l, indent]
-		parseExpression()
-		stack.pop()
-	else if tokens[i][0] == 'leftbracket'
-		token = tokens[i]; i++
-		l = ['list']
-		stack[stack.length-1][0].push l
-		stack.push [l, indent]
-		parseList()
-		if tokens[i]?[0] != 'rightbracket' then throw new Error 'Missing right bracket'
-		token = tokens[i]; i++
-		stack.pop()
-	else if tokens[i][0] == 'leftparen'
-		token = tokens[i]; i++
-		parseExpression()
-		if tokens[i]?[0] != 'rightparen' then throw new Error 'Missing right paren'
-		token = tokens[i]; i++
-		if token[1][1] == ':'
-			l = [stack[stack.length-1]?[0].pop()]
-			stack[stack.length-1]?[0].push l
+		if tokens[i][0] == 'call'
+			token = tokens[i]; i++
+			stack[stack.length-1][0].push [token[1][0...-1]]
+		else if tokens[i][0] == 'callargs'
+			token = tokens[i]; i++
+			l = [token[1][0...-1]]
+			stack[stack.length-1][0].push l
 			stack.push [l, indent]
 			parseList()
 			stack.pop()
-		else if token[1][1] == '.'
-			l = [stack[stack.length-1]?[0].pop()]
-			stack[stack.length-1]?[0].push l
-	else if tokens[i][0] == 'string'
-		token = tokens[i]; i++
-		stack[stack.length-1][0].push ['quote', token[1].substr(1, token[1].length - 2)]
-	else if tokens[i][0] == 'bool'
-		token = tokens[i]; i++
-		stack[stack.length-1][0].push token[1] == 'true'
-	else if tokens[i][0] == 'atom'
-		token = tokens[i]; i++
-		stack[stack.length-1][0].push token[1]
-	else if tokens[i][0] == 'number'
-		token = tokens[i]; i++
-		stack[stack.length-1][0].push Number(token[1])
-	else
-		return false
+		else if tokens[i][0] == 'quote'
+			token = tokens[i]; i++
+			l = ['quote']
+			stack[stack.length-1][0].push l
+			stack.push [l, indent]
+			parseExpression()
+			stack.pop()
+		else if tokens[i][0] == 'leftbracket'
+			token = tokens[i]; i++
+			l = ['list']
+			stack[stack.length-1][0].push l
+			stack.push [l, indent]
+			parseList()
+			if tokens[i]?[0] != 'rightbracket' then throw new Error 'Missing right bracket'
+			token = tokens[i]; i++
+			stack.pop()
+		else if tokens[i][0] == 'leftparen'
+			token = tokens[i]; i++
+			parseExpression()
+			if tokens[i]?[0] != 'rightparen' then throw new Error 'Missing right paren'
+			token = tokens[i]; i++
+			if token[1][1] == ':'
+				l = [stack[stack.length-1]?[0].pop()]
+				stack[stack.length-1]?[0].push l
+				stack.push [l, indent]
+				parseList()
+				stack.pop()
+			else if token[1][1] == '.'
+				l = [stack[stack.length-1]?[0].pop()]
+				stack[stack.length-1]?[0].push l
+		else if tokens[i][0] == 'string'
+			token = tokens[i]; i++
+			stack[stack.length-1][0].push ['quote', token[1].substr(1, token[1].length - 2)]
+		else if tokens[i][0] == 'bool'
+			token = tokens[i]; i++
+			stack[stack.length-1][0].push token[1] == 'true'
+		else if tokens[i][0] == 'atom'
+			token = tokens[i]; i++
+			stack[stack.length-1][0].push token[1]
+		else if tokens[i][0] == 'number'
+			token = tokens[i]; i++
+			stack[stack.length-1][0].push Number(token[1])
+		else
+			return false
 
-	# infix notation
-	if tokens[i]?[0] == 'infix'
-		op = tokens[i][1]; i++
-		left = stack[stack.length-1][0].pop()
-		unless parseExpression() then throw new Error 'missing right expression'
-		right = stack[stack.length-1][0].pop()
-		stack[stack.length-1][0].push [op, left, right]
+		# infix notation
+		if tokens[i]?[0] == 'infix'
+			op = tokens[i][1]; i++
+			left = stack[stack.length-1][0].pop()
+			unless parseExpression() then throw new Error 'missing right expression'
+			right = stack[stack.length-1][0].pop()
+			stack[stack.length-1][0].push [op, left, right]
 
-	return true
+		return true
 
-parseList()
+	parseList()
 
-console.log 'Parse tree:'
-console.log(util.inspect(res, no, null))
-console.log '------------'
+	console.log 'Parse tree:'
+	console.log(util.inspect(res, no, null))
+	console.log '------------'
+
+	return res
 
 ###
 # Evaluator
@@ -207,8 +167,10 @@ base = new Scope
 
 	"eval": (f) ->
 		if f?.constructor == Array
-			if typeof f[0] == 'string' then this[f[0]](f[1...]...)
-			else base.eval.call(this, f[0])(f[1...]...)
+			if typeof f[0] == 'string'
+				this[f[0]](f[1...]...)
+			else
+				base.eval.call(this, f[0]).call(this, f[1...]...)
 		else if typeof f == 'string' then this[f]
 		else f
 
@@ -245,7 +207,16 @@ base = new Scope
 # Test
 ###
 
-#console.log(stat) for stat in res
+if process.argv.length < 3
+	console.error 'Please specify a file'
+	process.exit 1
 
-for stat in res
-	base.eval stat
+do ->
+	fs.readFile process.argv[2], 'utf-8', (err, code) ->
+		if err
+			console.error "Could not open file: %s", err
+			process.exit 1
+
+		res = parse(code)
+		for stat in res
+			base.eval stat
