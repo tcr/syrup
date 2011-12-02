@@ -156,28 +156,15 @@ execScript = (code) ->
 
 	base = new Scope
 		quote: (arg) -> arg
-		"list": (list...) -> base.eval.call(this, e) for e in list
-		"==": (a, b) -> base.eval.call(this, a) == base.eval.call(this, b)
+		"list": (list...) -> eval(this, e) for e in list
+		"==": (a, b) -> eval(this, a) == eval(this, b)
 		"atom?": (arg) -> typeof arg == 'string'
-		"empty?": (list) ->
-			list = base.eval.call(this, list)
-			not (list? and list.length)
+		"first": (list) -> eval(this, list)[0]
+		"rest": (list) -> eval(this, list)[1...]
+		"concat": (a, list) -> [eval(this, a)].concat eval(this, list)
+		"if": (cond, t, f) -> if eval(this, cond) then eval(this, t) else eval(this, f)
 
-		"first": (list) ->
-			list = base.eval.call(this, list)
-			list[0]
-		"rest": (list) ->
-			list = base.eval.call(this, list)
-			list[1...]
-		"concat": (a, list) ->
-			[base.eval.call(this, a)].concat base.eval.call(this, list)
-
-		"if": (cond, t, f) ->
-			if base.eval.call(this, cond) then return base.eval.call(this, t)
-			else return base.eval.call(this, f)
-		"unless": (cond, t, f) ->
-			unless base.eval.call(this, cond) then return base.eval.call(this, t)
-			else return base.eval.call(this, f)
+		"empty?": (list) -> not eval(this, list)?.length
 
 		"eval": (f) ->
 			if f?.constructor == Array
@@ -198,7 +185,7 @@ execScript = (code) ->
 				# evaluate func in new scope
 				s = new Scope(lscope, map)
 				for expr in exprs[0...-1] then base.eval.call(s, expr) 
-				if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
+				return if exprs.length then base.eval.call(s, exprs[exprs.length-1]) else null
 		"macro": (params, exprs...) ->
 			lscope = this
 			params = params[1...] # remove 'list' tag, auto-quote
@@ -209,7 +196,11 @@ execScript = (code) ->
 				# evaluate func in new scope
 				s = new Scope(lscope, map)
 				for expr in exprs[0...-1] then base.eval.call(s, expr) 
-				if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
+				if exprs.length
+					res = base.eval.call(s, exprs[exprs.length-1])
+					return eval(this, res)
+				else
+					return null
 		"=": (n, e) -> this[n] = base.eval.call this, e
 		"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
 		"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)

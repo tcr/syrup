@@ -1,3 +1,6 @@
+unless = macro: [cond t f]
+  list: `if cond f t
+
 loop = fn: [l, f]
   f: first: l
   unless: (empty?: rest: l)
