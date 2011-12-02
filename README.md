@@ -16,14 +16,23 @@ Parentheses are for disambiguation, and are insignificant:
 Commas are allowed, but not required in lists of arguments/literals.
 Array/list syntax is like JavaScript array literals:
 
-    [5 6 7 8]
+    [5 6 7 8] # equivalent to list: 5 6 7 8
 
-Arrays can't be invoked, as the above the above is equivalent to
+Because arrays evaluate to lists, they are not equivalent to lists
+in Lisp (which can be evaluated).
 
-    list: 5 6 7 8
+Quoting uses \`.
 
-Quoting is `. Infix notation is supported for arithmetic operations
+    print: `apples # prints "apples"
+
+Infix notation is supported for arithmetic operations
 and for the assign operator:
 
-    (+: 5 6) is equal to (5 + 6)
-    (test = fn: [] print: 'hi') declares the function 'test'
+    (+: 5 6) # equivalent to (5 + 6)
+    test = fn: [] print: 'hi' # declares the function 'test'
+
+Macros are supported:
+
+    unless = macro: [cond t f]
+      [`if cond f t]
+    print: unless: true "false value" "true value"

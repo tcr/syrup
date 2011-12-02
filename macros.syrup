@@ -1,5 +1,5 @@
 unless = macro: [cond t f]
-  list: `if cond f t
+  [`if cond f t]
 
 loop = fn: [l, f]
   f: first: l

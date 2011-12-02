@@ -17,7 +17,7 @@ chunker =
 	infix: /^[+\-\/*=]+/
 	comma: /^,/
 	call: /^[a-zA-Z_?=+\-\/*!]+[.]/
-	bool: /^true|false/
+	bool: /^true|^false/
 	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	number: /^[0-9+]+/
 	comment: /^\#[^\n]+/
@@ -29,10 +29,12 @@ parse = (code) ->
 		m = null
 		for k, patt of chunker
 			if m = patt.exec(c2)
-					c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
-					tokens.push [k, m[0]]
-					break
+				c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
+				tokens.push [k, m[0]]
+				break
 		unless m then throw new Error 'Invalid code'
+
+	console.log 'tokens', tokens
 
 	res = []; stack = [[res, -1]]; indent = 0; i = 0
 
