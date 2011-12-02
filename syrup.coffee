@@ -145,63 +145,81 @@ parse = (code) ->
 # Evaluator
 ###
 
-Scope = (parent = null, def) ->
-	if parent then f = (->); f.prototype = parent; ret = new f()
-	else ret = {}
-	for k, v of def then ret[k] = v
-	return ret
+execScript = (code) ->
+	Scope = (parent = null, def) ->
+		if parent then f = (->); f.prototype = parent; ret = new f()
+		else ret = {}
+		for k, v of def then ret[k] = v
+		return ret
 
-base = new Scope
-	quote: (arg) -> arg
-	"list": (list...) -> base.eval.call(this, e) for e in list
-	"==": (a, b) -> base.eval.call(this, a) == base.eval.call(this, b)
-	"atom?": (arg) -> typeof arg == 'string'
+	eval = (ths, f) -> base.eval.call(ths, f)
 
-	"first": (list) -> list[0]
-	"rest": (list) -> list[1...]
-	"concat": (a, list) -> [base.eval.call(this, a)].concat base.eval.call(this, list)
+	base = new Scope
+		quote: (arg) -> arg
+		"list": (list...) -> base.eval.call(this, e) for e in list
+		"==": (a, b) -> base.eval.call(this, a) == base.eval.call(this, b)
+		"atom?": (arg) -> typeof arg == 'string'
+		"empty?": (list) ->
+			list = base.eval.call(this, list)
+			not (list? and list.length)
 
-	"if": (cond, t, f) ->
-		if base.eval.call(this, cond) then return base.eval.call(this, t)
-		else return base.eval.call(this, f)
+		"first": (list) ->
+			list = base.eval.call(this, list)
+			list[0]
+		"rest": (list) ->
+			list = base.eval.call(this, list)
+			list[1...]
+		"concat": (a, list) ->
+			[base.eval.call(this, a)].concat base.eval.call(this, list)
 
-	"eval": (f) ->
-		if f?.constructor == Array
-			if typeof f[0] == 'string'
-				this[f[0]](f[1...]...)
-			else
-				base.eval.call(this, f[0]).call(this, f[1...]...)
-		else if typeof f == 'string' then this[f]
-		else f
+		"if": (cond, t, f) ->
+			if base.eval.call(this, cond) then return base.eval.call(this, t)
+			else return base.eval.call(this, f)
+		"unless": (cond, t, f) ->
+			unless base.eval.call(this, cond) then return base.eval.call(this, t)
+			else return base.eval.call(this, f)
 
-	"fn": (params, exprs...) ->
-		lscope = this
-		params = params[1...] # remove 'list' tag, auto-quote
-		return (args...) ->
-			# evaluate params in original scope
-			map = {}
-			for p, i in params then map[p] = base.eval.call(this, args[i])
-			# evaluate func in new scope
-			s = new Scope(lscope, map)
-			for expr in exprs[0...-1] then base.eval.call(s, expr) 
-			if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
-	"macro": (params, exprs...) ->
-		lscope = this
-		params = params[1...] # remove 'list' tag, auto-quote
-		return (args...) ->
-			# name params
-			map = {}
-			for p, i in params then map[p] = args[i]
-			# evaluate func in new scope
-			s = new Scope(lscope, map)
-			for expr in exprs[0...-1] then base.eval.call(s, expr) 
-			if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
-	"=": (n, e) -> this[n] = base.eval.call this, e
-	"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
-	"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
+		"eval": (f) ->
+			if f?.constructor == Array
+				if typeof f[0] == 'string'
+					this[f[0]](f[1...]...)
+				else
+					base.eval.call(this, f[0]).call(this, f[1...]...)
+			else if typeof f == 'string' then this[f]
+			else f
 
-	"print": (args...) ->
-		console.log 'Output:', (JSON.stringify(base.eval.call(this, arg)) for arg in args)...
+		"fn": (params, exprs...) ->
+			lscope = this
+			params = params[1...] # remove 'list' tag, auto-quote
+			return (args...) ->
+				# evaluate params in original scope
+				map = {}
+				for p, i in params then map[p] = base.eval.call(this, args[i])
+				# evaluate func in new scope
+				s = new Scope(lscope, map)
+				for expr in exprs[0...-1] then base.eval.call(s, expr) 
+				if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
+		"macro": (params, exprs...) ->
+			lscope = this
+			params = params[1...] # remove 'list' tag, auto-quote
+			return (args...) ->
+				# name params
+				map = {}
+				for p, i in params then map[p] = args[i]
+				# evaluate func in new scope
+				s = new Scope(lscope, map)
+				for expr in exprs[0...-1] then base.eval.call(s, expr) 
+				if exprs.length then return base.eval.call(s, exprs[exprs.length-1]) else null
+		"=": (n, e) -> this[n] = base.eval.call this, e
+		"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
+		"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
+
+		"print": (args...) ->
+			console.log 'Output:', (JSON.stringify(base.eval.call(this, arg)) for arg in args)...
+	
+	res = parse(code)
+	for stat in res
+		base.eval stat
 
 ###
 # Test
@@ -217,6 +235,4 @@ do ->
 			console.error "Could not open file: %s", err
 			process.exit 1
 
-		res = parse(code)
-		for stat in res
-			base.eval stat
+		execScript code

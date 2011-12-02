@@ -1,3 +1,9 @@
-a = macro: [n] print: n
+loop = fn: [l, f]
+  f: first: l
+  unless: (empty?: rest: l)
+    loop: (rest: l) f
+
+a = macro: [n]
+  loop: n (fn: [x] print: x)
 a: 5 * 6
 a: [5 6 7]
