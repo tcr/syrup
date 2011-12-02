@@ -14,15 +14,18 @@ chunker =
 	indent: /^\n[\t ]*/
 	string: /^('[^']*'|"[^"]*")/
 	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
-	infix: /^[+\-\/*=]+/
+	infix: /^[+\-\/*=.]+/
 	comma: /^,/
-	call: /^[a-zA-Z_?=+\-\/*!]+[.]/
+	call: /^[a-zA-Z_?=+\-\/*!]+[.]\b/
+	null: /^null/
 	bool: /^true|^false/
 	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	number: /^[0-9+]+/
 	comment: /^\#[^\n]+/
 
 parse = (code) -> 
+	# Parse tokens.
+
 	c2 = code.replace /\r/g, ''
 	tokens = []
 	while c2.length
@@ -33,8 +36,8 @@ parse = (code) ->
 				tokens.push [k, m[0]]
 				break
 		unless m then throw new Error 'Invalid code'
-
-	console.log 'tokens', tokens
+	
+	# Parse grammar.
 
 	res = []; stack = [[res, -1]]; indent = 0; i = 0
 
@@ -55,18 +58,6 @@ parse = (code) ->
 			if not parseExpression() then break
 
 	parseExpression = ->
-		#while tokens[i]?[0] == 'indent' and tokens[i+1]?[0] == 'indent'
-		#	token = tokens[i]; i++
-		#	if tokens[i]?[0] == 'indent'
-		#		continue
-			#indent = token[1].length
-			#stack.pop() while stack[stack.length-1]?[1] >= indent
-		#while tokens[i]?[0] == 'indent'
-		# if tokens[i]?[1].length != 1 then return false
-		# token = tokens[i]; i++
-		
-		return unless tokens[i]
-
 		while tokens[i][0] == 'comment'
 			token = tokens[i]; i++
 
@@ -208,7 +199,7 @@ execScript = (code) ->
 		"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
 
 		"print": (args...) ->
-			console.log 'Output:', (JSON.stringify(base.eval.call(this, arg)) for arg in args)...
+			console.log (JSON.stringify(base.eval.call(this, arg)) for arg in args)...
 	
 	res = parse(code)
 	for stat in res
