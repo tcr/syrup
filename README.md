@@ -36,3 +36,21 @@ Macros are supported:
     unless = macro: [cond t f]
       [`if cond f t]
     print: unless: true "false value" "true value"
+
+## Open Design Issues!
+
+### JSON Compatible
+
+A major goal for Syrup is to be JSON-compatible. There would be syntatic
+confusion for object literals if both the following lines were valid:
+
+    # Function calls:
+    a: 5, b: 6 # (a 5 (b 6))
+
+    # Object literal:
+    {"a": 5, "b": 6}
+
+Requiring object keys to be quoted as strings (strict JSON) alleviates
+some of this concern, but the colon operator still seems overloaded.
+
+### More things later

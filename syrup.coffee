@@ -1,9 +1,9 @@
 util = require 'util'
 fs = require 'fs'
 
-###
+#######################################################################
 # Parser
-###
+#######################################################################
 
 chunker = 
 	leftbracket: /^\[/
@@ -14,12 +14,11 @@ chunker =
 	indent: /^\n[\t ]*/
 	string: /^('[^']*'|"[^"]*")/
 	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
-	infix: /^[+\-\/*=.]+/
+	call: /^[a-zA-Z_?=+\-\/*!]+[.](?!\b)/
+	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	comma: /^,/
-	call: /^[a-zA-Z_?=+\-\/*!]+[.]\b/
 	null: /^null/
 	bool: /^true|^false/
-	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	number: /^[0-9+]+/
 	comment: /^\#[^\n]+/
 
@@ -36,6 +35,8 @@ parse = (code) ->
 				tokens.push [k, m[0]]
 				break
 		unless m then throw new Error 'Invalid code'
+	
+	console.warn(util.inspect(tokens, no, null))
 	
 	# Parse grammar.
 
@@ -116,11 +117,12 @@ parse = (code) ->
 		else
 			return false
 
-		# infix notation
-		if tokens[i]?[0] == 'infix'
+		# Check if subsequent token is infix
+		if tokens[i]?[0] == 'atom' and tokens[i][1].match /^[+\-\/*=]+/
 			op = tokens[i][1]; i++
 			left = stack[stack.length-1][0].pop()
-			unless parseExpression() then throw new Error 'missing right expression'
+			unless parseExpression()
+				throw new Error 'Missing right expression. Matched ' + tokens[i][0] + ' after ' + tokens[i-1][0] + ' (' + tokens[i-1] + ')'
 			right = stack[stack.length-1][0].pop()
 			stack[stack.length-1][0].push [op, left, right]
 
@@ -134,9 +136,9 @@ parse = (code) ->
 
 	return res
 
-###
+#######################################################################
 # Evaluator
-###
+#######################################################################
 
 execScript = (code) ->
 	Scope = (parent = null, def) ->
@@ -194,7 +196,9 @@ execScript = (code) ->
 					return eval(this, res)
 				else
 					return null
-		"=": (n, e) -> this[n] = base.eval.call this, e
+		"=": (n, e) ->
+			if this[n]? then throw new Error 'Cannot reassign variable'
+			this[n] = base.eval.call this, e
 		"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
 		"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
 
@@ -205,9 +209,9 @@ execScript = (code) ->
 	for stat in res
 		base.eval stat
 
-###
-# Test
-###
+#######################################################################
+# Command line
+#######################################################################
 
 if process.argv.length < 3
 	console.error 'Please specify a file'
