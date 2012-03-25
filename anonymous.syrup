@@ -2,12 +2,3 @@ test = fn: []
   (fn: [f] f: [`b `c]):
     fn: [x] concat: `a x
 print: test.
-
-print: {
-	"apple": 5,
-	"bear": 6,
-	"candy": 7
-	}
-
-c = "cat": 7
-map: print {"apple": 5, "bear": 6, c}
