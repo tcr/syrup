@@ -10,9 +10,11 @@ chunker =
 	rightbracket: /^\]/
 	leftparen: /^\(/
 	rightparen: /^\)[.:]?/
+	leftbrace: /^\{/
+	rightbrace: /^\}/
 	quote: /^`/
 	indent: /^\n[\t ]*/
-	string: /^('[^']*'|"[^"]*")/
+	string: /^('[^']*'|"[^"]*")[:]?/
 	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
 	call: /^[a-zA-Z_?=+\-\/*!]+[.](?!\b)/
 	atom: /^[a-zA-Z_?=+\-\/*!]+/
@@ -79,6 +81,15 @@ parse = (code) ->
 			stack.push [l, indent]
 			parseExpression()
 			stack.pop()
+		else if tokens[i][0] == 'leftbrace'
+			token = tokens[i]; i++
+			l = ['combine']
+			stack[stack.length-1][0].push l
+			stack.push [l, indent]
+			parseList()
+			if tokens[i]?[0] != 'rightbrace' then throw new Error 'Missing right brace'
+			token = tokens[i]; i++
+			stack.pop()
 		else if tokens[i][0] == 'leftbracket'
 			token = tokens[i]; i++
 			l = ['list']
@@ -104,7 +115,14 @@ parse = (code) ->
 				stack[stack.length-1]?[0].push l
 		else if tokens[i][0] == 'string'
 			token = tokens[i]; i++
-			stack[stack.length-1][0].push ['quote', token[1].substr(1, token[1].length - 2)]
+			isfunc = token[1].substr(-1) == ':'
+			stack[stack.length-1][0].push ['quote', token[1].substr(1, token[1].length - 2 - Number(isfunc))]
+			if isfunc
+				l = [stack[stack.length-1]?[0].pop()]
+				stack[stack.length-1]?[0].push l
+				stack.push [l, indent]
+				parseList()
+				stack.pop()
 		else if tokens[i][0] == 'bool'
 			token = tokens[i]; i++
 			stack[stack.length-1][0].push token[1] == 'true'
@@ -140,6 +158,8 @@ parse = (code) ->
 # Evaluator
 #######################################################################
 
+isArray = (obj) -> !!(obj and obj.concat and obj.unshift and not obj.callee)
+
 execScript = (code) ->
 	Scope = (parent = null, def) ->
 		if parent then f = (->); f.prototype = parent; ret = new f()
@@ -166,7 +186,16 @@ execScript = (code) ->
 				if typeof f[0] == 'string'
 					this[f[0]](f[1...]...)
 				else
-					base.eval.call(this, f[0]).call(this, f[1...]...)
+					func = base.eval.call(this, f[0])
+					if typeof func == 'string'
+						r = {}
+						r[func] = f[1]
+						for arg in f[2...]
+							for k, v of base.eval.call(this, arg)
+								r[k] = v
+						r
+					else
+						func.call(this, f[1...]...)
 			else if typeof f == 'string' then this[f]
 			else f
 
@@ -181,6 +210,7 @@ execScript = (code) ->
 				s = new Scope(lscope, map)
 				for expr in exprs[0...-1] then base.eval.call(s, expr) 
 				return if exprs.length then base.eval.call(s, exprs[exprs.length-1]) else null
+
 		"macro": (params, exprs...) ->
 			lscope = this
 			params = params[1...] # remove 'list' tag, auto-quote
@@ -196,6 +226,22 @@ execScript = (code) ->
 					return eval(this, res)
 				else
 					return null
+
+		"map": (f, expr) ->
+			f = base.eval.call(this, f)
+			expr = base.eval.call(this, expr)
+			if expr?.length
+				for v, i in expr then f.call(this, ['quote', v], ['quote', i])
+			else
+				for k, v of expr then f.call(this, ['quote', v], ['quote', k])
+			return null
+
+		"combine": (exprs...) ->
+			ret = {}
+			for expr in exprs
+				for k, v of base.eval.call(this, expr) then ret[k] = v
+			return ret
+
 		"=": (n, e) ->
 			if this[n]? then throw new Error 'Cannot reassign variable'
 			this[n] = base.eval.call this, e

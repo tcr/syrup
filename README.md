@@ -37,20 +37,17 @@ Macros are supported:
       [`if cond f t]
     print: unless: true "false value" "true value"
 
-## Open Design Issues!
+Object literals can be defined using quoted strings or string variables
+as keys (as in python). Any arguments after the first passed to a string
+function have their properties copied to the new object literal. Finally,
+curly-braces combine all listed objects into one.
 
-### JSON Compatible
+    "a": 1                 # JSON: {"a": 1}
+    obj = "b": 2 "c": 3    # parses to ("b" 2 ("c" 3)) and JSON: {"b": 2, "c": 3}
+    obj2 = {"a": 1, obj}   # parses to (combine ("a", 1) obj) and JSON: {"a": 1, "b": 2, "c": 3}
 
-A major goal for Syrup is to be JSON-compatible. There would be syntatic
-confusion for object literals if both the following lines were valid:
+Syrup is JSON-compatible.
 
-    # Function calls:
-    a: 5, b: 6 # (a 5 (b 6))
+## TODO
 
-    # Object literal:
-    {"a": 5, "b": 6}
-
-Requiring object keys to be quoted as strings (strict JSON) alleviates
-some of this concern, but the colon operator still seems overloaded.
-
-### More things later
+REPL, and lots more bikeshedding.
