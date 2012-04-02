@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Syrup by timcameronryan</title>
+    
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Syrup</h1>
+        <p>A CoffeeScript-inspired LISP, for funsies.</p>
+        <p class="view"><a href="https://github.com/timcameronryan/syrup">View the Project on GitHub <small>timcameronryan/syrup</small></a></p>
+        <ul>
+          <li><a href="https://github.com/timcameronryan/syrup/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/timcameronryan/syrup/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/timcameronryan/syrup">Fork On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h3>Syrup, a syntactically-light LISP</h3>
+
+<pre><code>fib = fn: [n]
+    calc-fib = fn: [n a b]
+        if: (n == 0)
+            a 
+            calc-fib: (n - 1) b (a + b)
+    calc-fib: n 0 1
+
+print: fib: 10
+</code></pre>
+
+<h3>Syntax</h3>
+
+<p>Syrup is whitespace-significant. Function calls are made by a colon
+following an atom. All subsequent arguments on a line are passed to the
+function until a newline of the same indentation, the end of a parenthetical,
+or a period <code>.</code></p>
+
+<pre><code>print: "Cool language x" 5000  # Parses as (print "Cool language x" 5000)
+print:                         # Equivalent
+    "Cool language x"
+    5000
+print: square: 5. square: 6.   # "25", "36"
+</code></pre>
+
+<p>Parentheses are for disambiguation, and are insignificant. 
+Commas are allowed, but not required.</p>
+
+<pre><code>calc-fib: (n - 1) b (a + b)
+calc-fib: n - 1, b, a + b
+</code></pre>
+
+<p>Vector (array) syntax is like JavaScript's array literals. Vectors
+are not executed as functions.</p>
+
+<pre><code>[5 6 7 8] # equivalent to list: 5 6 7 8
+</code></pre>
+
+<p>Quoting uses `.</p>
+
+<pre><code>print: `apples                 # prints "apples"
+</code></pre>
+
+<p>Infix notation is supported for arithmetic operations
+and for the assign operator:</p>
+
+<pre><code>5 + 6                          # these two lines are
+(+: 5 6)                       # equivalent
+test = fn: [] print: 'hi'      # declares the function 'test'
+</code></pre>
+
+<p>Macros are supported:</p>
+
+<pre><code>unless = macro: [cond t f]
+  [`if cond f t]
+
+print: unless: true "false value" "true value"
+</code></pre>
+
+<p>Object literals can be defined using quoted strings or string variables
+as keys (as in python). Any arguments after the first passed to a string
+function have their properties copied to the new object literal. Finally,
+curly-braces combine all listed objects into one.</p>
+
+<pre><code>"a": 1                         # JSON: {"a": 1}
+("some" + "key"): "val"        # JSON: {"somekey": "val"}
+obj = "b": 2 "c": 3            # parses to ("b" 2 ("c" 3)) and JSON: {"b": 2, "c": 3}
+obj2 = {"a": 1, obj}           # parses to (combine ("a", 1) obj) and JSON: {"a": 1, "b": 2, "c": 3}
+</code></pre>
+
+<h3>TODO</h3>
+
+<p>REPL, and lots more bikeshedding.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/timcameronryan">timcameronryan</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+  </body>
+</html>
