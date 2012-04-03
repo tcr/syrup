@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Syrup | A syntactically-light LISP, written in CoffeeScript.</title>
+    
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Syrup</h1>
+        <p>A syntactically-light LISP, written in CoffeeScript.</p>
+        <!--
+        <p class="view"><a href="https://github.com/timcameronryan/rem">View the Project on GitHub <small>timcameronryan/rem</small></a></p>
+      -->
+        <ul>
+          <!--
+          <li><a href="https://github.com/timcameronryan/rem/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/timcameronryan/rem/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          -->
+          <li><a href="https://github.com/timcameronryan/syrup">View On <strong>GitHub</strong></a></li>
+        </ul>
+        <p>See more projects by <a href="https://github.com/timcameronryan">timcameronryan</a> at <a href="http://tcr.io/"><b>tcr.io</b></a></p>
+      </header>
+      <section>
+<h2>Getting started with Syrup</h2>
+
+<div class="highlight"><pre><code class="ruby"><span class="n">fib</span> <span class="o">=</span> <span class="n">fn</span><span class="p">:</span> <span class="o">[</span><span class="n">n</span><span class="o">]</span>
+    <span class="n">calc</span><span class="o">-</span><span class="n">fib</span> <span class="o">=</span> <span class="n">fn</span><span class="p">:</span> <span class="o">[</span><span class="n">n</span> <span class="n">a</span> <span class="n">b</span><span class="o">]</span>
+        <span class="k">if</span><span class="p">:</span> <span class="p">(</span><span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">a</span> 
+            <span class="n">calc</span><span class="o">-</span><span class="n">fib</span><span class="p">:</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="n">b</span> <span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span>
+    <span class="n">calc</span><span class="o">-</span><span class="n">fib</span><span class="p">:</span> <span class="n">n</span> <span class="mi">0</span> <span class="mi">1</span>
+
+<span class="nb">print</span><span class="p">:</span> <span class="n">fib</span><span class="p">:</span> <span class="mi">10</span>
+</code></pre>
+</div>
+
+<p>From the command line:</p>
+
+<pre><code>coffee syrup.coffee examples/fib.syrup
+</code></pre>
+
+<p>And for a REPL:</p>
+
+<pre><code>coffee syrup.coffee
+</code></pre>
+
+<h2>Syntax</h2>
+
+<p>Syrup is whitespace-significant. Function calls are made by a colon
+following an atom. All subsequent arguments on a line are passed to the
+function until a newline of the same indentation, the end of a parenthetical,
+or a semicolon <code>;</code></p>
+
+<div class="highlight"><pre><code class="ruby"><span class="nb">print</span><span class="p">:</span> <span class="s2">&quot;Cool language x&quot;</span> <span class="mi">5000</span>  <span class="c1"># Parses as (print &quot;Cool language x&quot; 5000)</span>
+<span class="nb">print</span><span class="p">:</span>                         <span class="c1"># Equivalent</span>
+    <span class="s2">&quot;Cool language x&quot;</span>
+    <span class="mi">5000</span>
+<span class="nb">print</span><span class="p">:</span> <span class="n">square</span><span class="p">:</span> <span class="mi">5</span><span class="p">;</span> <span class="n">square</span><span class="p">:</span> <span class="mi">6</span><span class="p">;</span>   <span class="c1"># &quot;25&quot;, &quot;36&quot;</span>
+</code></pre>
+</div>
+
+<p>Parentheses are for disambiguation, and are insignificant. 
+Commas are allowed, but not required.</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="n">calc</span><span class="o">-</span><span class="n">fib</span><span class="p">:</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="n">b</span> <span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span>
+<span class="n">calc</span><span class="o">-</span><span class="n">fib</span><span class="p">:</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</code></pre>
+</div>
+
+<p>Vector (array) syntax is like JavaScript's array literals. Vectors
+are not executed as functions.</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="o">[</span><span class="mi">5</span> <span class="mi">6</span> <span class="mi">7</span> <span class="mi">8</span><span class="o">]</span> <span class="c1"># equivalent to list: 5 6 7 8</span>
+</code></pre>
+</div>
+
+<p>Quoting uses `.</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="nb">print</span><span class="p">:</span> <span class="sb">`apples                 # prints &quot;apples&quot;</span>
+</code></pre>
+</div>
+
+<p>Infix notation is supported for arithmetic operators
+and the assign operator:</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="mi">5</span> <span class="o">+</span> <span class="mi">6</span>                          <span class="c1"># these two lines...</span>
+<span class="o">+</span><span class="p">:</span> <span class="mi">5</span> <span class="mi">6</span>                         <span class="c1"># ...are equivalent</span>
+<span class="nb">test</span> <span class="o">=</span> <span class="n">fn</span><span class="p">:</span> <span class="o">[]</span> <span class="nb">print</span><span class="p">:</span> <span class="s1">&#39;hi&#39;</span>      <span class="c1"># declares the function &#39;test&#39;</span>
+</code></pre>
+</div>
+
+<p>Macros are supported:</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="k">unless</span> <span class="o">=</span> <span class="n">macro</span><span class="p">:</span> <span class="o">[</span><span class="n">cond</span> <span class="n">t</span> <span class="n">f</span><span class="o">]</span>
+  <span class="o">[</span><span class="sb">`if cond f t]</span>
+
+<span class="sb">print: unless: true &quot;falsy&quot; &quot;truthy&quot;</span>
+</code></pre>
+</div>
+
+<p>Object literals can be defined using quoted strings or string variables
+as keys (as in python). Any arguments after the first passed to a string
+function have their properties copied to the new object literal. Finally,
+curly-braces combine all listed objects into one.</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span>                         <span class="c1"># JSON: {&quot;a&quot;: 1}</span>
+<span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;somekey&quot;</span>
+<span class="n">key</span><span class="p">:</span> <span class="s2">&quot;val&quot;</span>                     <span class="c1"># JSON: {&quot;somekey&quot;: &quot;val&quot;}</span>
+<span class="p">(</span><span class="s2">&quot;some&quot;</span> <span class="o">+</span> <span class="s2">&quot;key&quot;</span><span class="p">):</span> <span class="s2">&quot;val&quot;</span>        <span class="c1"># JSON: {&quot;somekey&quot;: &quot;val&quot;}</span>
+<span class="n">obj</span> <span class="o">=</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span> <span class="mi">2</span> <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="mi">3</span>            <span class="c1"># parses to (&quot;b&quot; 2 (&quot;c&quot; 3)), equals {&quot;b&quot;: 2, &quot;c&quot;: 3}</span>
+<span class="n">obj2</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="n">obj</span><span class="p">}</span>           <span class="c1"># parses to (combine (&quot;a&quot;, 1) obj), equals {&quot;a&quot;: 1, &quot;b&quot;: 2, &quot;c&quot;: 3}</span>
+</code></pre>
+</div>
+
+<p>Syrup's <code>loop</code> struct helps mimic the benefits of tail-call optimization.</p>
+
+<div class="highlight"><pre><code class="ruby"><span class="n">range</span> <span class="o">=</span> <span class="n">fn</span><span class="p">:</span> <span class="o">[</span><span class="n">i</span><span class="o">]</span>
+  <span class="kp">loop</span><span class="p">:</span> <span class="o">[</span><span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="o">[]]</span>
+    <span class="k">if</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="n">r</span>
+      <span class="n">continue</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">concat</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">r</span>
+
+<span class="nb">print</span><span class="p">:</span> <span class="n">range</span><span class="p">:</span> <span class="mi">5</span>                <span class="c1"># [0, 1, 2, 3, 4]</span>
+</code></pre>
+</div>
+
+<h3>Roadmap</h3>
+
+<ul>
+<li>Lots more bikeshedding.</li>
+<li>Option to write Node.js scripts in syrup.</li>
+<li>Rewrite compiler in Syrup.</li>
+</ul>
+
+<h2>License</h2>
+
+<p>Syrup is released under the MIT License.</p>
+
+      </section>
+      <footer>
+        <p><small>Hosted on GitHub Pages<br>Based on a Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
