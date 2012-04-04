@@ -1,4 +1,4 @@
 test = fn: []
   (fn: [f] f: [`b `c]):
     fn: [x] concat: `a x
-print: test.
+print: test;
