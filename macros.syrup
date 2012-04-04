@@ -6,7 +6,4 @@ loop = fn: [l, f]
   unless: (empty?: rest: l)
     loop: (rest: l) f
 
-a = macro: [n]
-  loop: n (fn: [x] print: x)
-a: 5 * 6
-a: [5 6 7]
+loop: [5 6 7] (fn: [x] print: x)

@@ -20,7 +20,7 @@ or a period `.`
     print:                         # Equivalent
         "Cool language x"
         5000
-    print: square: 5. square: 6.   # "25", "36"
+    print: square: 5; square: 6;   # "25", "36"
 
 Parentheses are for disambiguation, and are insignificant. 
 Commas are allowed, but not required.

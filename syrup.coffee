@@ -1,6 +1,9 @@
 util = require 'util'
 fs = require 'fs'
 
+Array.isArray = (obj) -> !!(obj and obj.concat and obj.unshift and not obj.callee)
+Object.hasOwnProperty = (obj, prop) -> {}.hasOwnProperty.call(obj, prop)
+
 #######################################################################
 # Parser
 #######################################################################
@@ -9,14 +12,14 @@ chunker =
 	leftbracket: /^\[/
 	rightbracket: /^\]/
 	leftparen: /^\(/
-	rightparen: /^\)[.:]?/
+	rightparen: /^\)[;:]?/
 	leftbrace: /^\{/
 	rightbrace: /^\}/
 	quote: /^`/
 	indent: /^\n[\t ]*/
 	string: /^('[^']*'|"[^"]*")[:]?/
 	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
-	call: /^[a-zA-Z_?=+\-\/*!]+[.](?!\b)/
+	call: /^[a-zA-Z_?=+\-\/*!]+[;](?!\b)/
 	atom: /^[a-zA-Z_?=+\-\/*!]+/
 	comma: /^,/
 	null: /^null/
@@ -24,133 +27,147 @@ chunker =
 	number: /^[0-9+]+/
 	comment: /^\#[^\n]+/
 
-parse = (code) -> 
+exports.tokenize = (code) ->
 	# Parse tokens.
-
 	c2 = code.replace /\r/g, ''
 	tokens = []
 	while c2.length
 		m = null
-		for k, patt of chunker
-			if m = patt.exec(c2)
-				c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
-				tokens.push [k, m[0]]
-				break
+		for k, patt of chunker when m = patt.exec(c2)
+			c2 = c2.substr(m[0].length).replace /^[\t ]+/, ''
+			tokens.push [k, m[0]]
+			break
 		unless m then throw new Error 'Invalid code'
 	
-	console.warn(util.inspect(tokens, no, null))
-	
-	# Parse grammar.
+	#console.warn(util.inspect(tokens, no, null))
+	return tokens
 
-	res = []; stack = [[res, -1]]; indent = 0; i = 0
+exports.parse = (code) -> 
+	tokens = exports.tokenize(code); i = 0
+	
+	# Return parse tree.
+	res = []
+	# Stack of current node, and indentation level
+	stack = [[res, -1]]
+	indent = 0
+
+	at = (type) -> tokens[i]?[0] == type
+	peek = (type) -> tokens[i+1]?[0] == type
+	next = -> t = tokens[i]; i++; return t
+	top = -> stack[stack.length-1]?[0]
 
 	parseList = ->
 		while i < tokens.length
-			if tokens[i][0] == 'indent'
-				if tokens[i+1]?[0] == 'indent'
-					token = tokens[i]; i++
+			if at 'indent'
+				# Subsequent newlines.
+				if peek 'indent'
+					token = next()
 					continue
-					# indented on newlines, part of list
+				# indented on newlines, part of list
 				if stack[stack.length-1]?[1] < tokens[i][1].length-1
-					token = tokens[i]; i++
+					token = next()
 					indent = token[1].length-1
 				else
 					break
-			if tokens[i]?[0] == 'comma'
-				token = tokens[i]; i++
+			if at 'comma'
+				token = next()
 			if not parseExpression() then break
 
 	parseExpression = ->
-		while tokens[i][0] == 'comment'
-			token = tokens[i]; i++
+		return unless tokens[i]
 
-		if tokens[i][0] == 'call'
-			token = tokens[i]; i++
-			stack[stack.length-1][0].push [token[1][0...-1]]
-		else if tokens[i][0] == 'callargs'
-			token = tokens[i]; i++
-			l = [token[1][0...-1]]
-			stack[stack.length-1][0].push l
+		while at 'comment'
+			token = next()
+
+		if at 'call'
+			token = next()
+			name = token[1][0...-1]
+			top().push [name]
+		else if at 'callargs'
+			token = next()
+			name = token[1][0...-1]
+			top().push l = [name]
 			stack.push [l, indent]
 			parseList()
 			stack.pop()
-		else if tokens[i][0] == 'quote'
-			token = tokens[i]; i++
+		else if at 'quote'
+			token = next()
 			l = ['quote']
-			stack[stack.length-1][0].push l
+			top().push l
 			stack.push [l, indent]
 			parseExpression()
 			stack.pop()
-		else if tokens[i][0] == 'leftbrace'
-			token = tokens[i]; i++
+		else if at 'leftbrace'
+			token = next()
 			l = ['combine']
-			stack[stack.length-1][0].push l
+			top().push l
 			stack.push [l, indent]
 			parseList()
-			if tokens[i]?[0] != 'rightbrace' then throw new Error 'Missing right brace'
-			token = tokens[i]; i++
+			unless at 'rightbrace' then throw new Error 'Missing right brace'
+			token = next()
 			stack.pop()
-		else if tokens[i][0] == 'leftbracket'
-			token = tokens[i]; i++
+		else if at 'leftbracket'
+			token = next()
 			l = ['list']
-			stack[stack.length-1][0].push l
+			top().push l
 			stack.push [l, indent]
 			parseList()
-			if tokens[i]?[0] != 'rightbracket' then throw new Error 'Missing right bracket'
-			token = tokens[i]; i++
+			unless at 'rightbracket' then throw new Error 'Missing right bracket'
+			token = next()
 			stack.pop()
-		else if tokens[i][0] == 'leftparen'
-			token = tokens[i]; i++
+		else if at 'leftparen'
+			token = next()
 			parseExpression()
-			if tokens[i]?[0] != 'rightparen' then throw new Error 'Missing right paren'
-			token = tokens[i]; i++
+			unless at 'rightparen' then throw new Error 'Missing right paren'
+			token = next()
 			if token[1][1] == ':'
-				l = [stack[stack.length-1]?[0].pop()]
-				stack[stack.length-1]?[0].push l
+				l = [top().pop()]
+				top().push l
 				stack.push [l, indent]
 				parseList()
 				stack.pop()
-			else if token[1][1] == '.'
-				l = [stack[stack.length-1]?[0].pop()]
-				stack[stack.length-1]?[0].push l
-		else if tokens[i][0] == 'string'
-			token = tokens[i]; i++
+			else if token[1][1] == ';'
+				l = [top().pop()]
+				top().push l
+		else if at 'string'
+			token = next()
 			isfunc = token[1].substr(-1) == ':'
-			stack[stack.length-1][0].push ['quote', token[1].substr(1, token[1].length - 2 - Number(isfunc))]
+			str = token[1].substr(1, token[1].length - 2 - Number(isfunc))
+			top().push ['quote', str]
 			if isfunc
-				l = [stack[stack.length-1]?[0].pop()]
-				stack[stack.length-1]?[0].push l
+				l = [top().pop()]
+				top().push l
 				stack.push [l, indent]
 				parseList()
 				stack.pop()
-		else if tokens[i][0] == 'bool'
-			token = tokens[i]; i++
-			stack[stack.length-1][0].push token[1] == 'true'
-		else if tokens[i][0] == 'atom'
-			token = tokens[i]; i++
-			stack[stack.length-1][0].push token[1]
-		else if tokens[i][0] == 'number'
-			token = tokens[i]; i++
-			stack[stack.length-1][0].push Number(token[1])
+		else if at 'bool'
+			token = next()
+			top().push token[1] == 'true'
+		else if at 'atom'
+			token = next()
+			top().push token[1]
+		else if at 'number'
+			token = next()
+			top().push Number(token[1])
 		else
 			return false
 
 		# Check if subsequent token is infix
-		if tokens[i]?[0] == 'atom' and tokens[i][1].match /^[+\-\/*=]+/
+		if at('atom') and tokens[i][1].match /^[+\-\/*=]+/
 			op = tokens[i][1]; i++
-			left = stack[stack.length-1][0].pop()
+			left = top().pop()
 			unless parseExpression()
 				throw new Error 'Missing right expression. Matched ' + tokens[i][0] + ' after ' + tokens[i-1][0] + ' (' + tokens[i-1] + ')'
-			right = stack[stack.length-1][0].pop()
-			stack[stack.length-1][0].push [op, left, right]
+			right = top().pop()
+			top().push [op, left, right]
 
 		return true
 
 	parseList()
 
-	console.log 'Parse tree:'
-	console.log(util.inspect(res, no, null))
-	console.log '------------'
+	#console.log 'Parse tree:'
+	#console.log(util.inspect(res, no, null))
+	#console.log '------------'
 
 	return res
 
@@ -158,115 +175,115 @@ parse = (code) ->
 # Evaluator
 #######################################################################
 
-isArray = (obj) -> !!(obj and obj.concat and obj.unshift and not obj.callee)
+exports.compile = (code) ->
+	# Compile to CoffeeScript.
 
-execScript = (code) ->
-	Scope = (parent = null, def) ->
-		if parent then f = (->); f.prototype = parent; ret = new f()
-		else ret = {}
-		for k, v of def then ret[k] = v
-		return ret
-
-	eval = (ths, f) -> base.eval.call(ths, f)
-
-	base = new Scope
-		quote: (arg) -> arg
-		"list": (list...) -> eval(this, e) for e in list
-		"==": (a, b) -> eval(this, a) == eval(this, b)
-		"atom?": (arg) -> typeof arg == 'string'
-		"first": (list) -> eval(this, list)[0]
-		"rest": (list) -> eval(this, list)[1...]
-		"concat": (a, list) -> [eval(this, a)].concat eval(this, list)
-		"if": (cond, t, f) -> if eval(this, cond) then eval(this, t) else eval(this, f)
-
-		"empty?": (list) -> not eval(this, list)?.length
-
-		"eval": (f) ->
-			if f?.constructor == Array
-				if typeof f[0] == 'string'
-					this[f[0]](f[1...]...)
-				else
-					func = base.eval.call(this, f[0])
-					if typeof func == 'string'
-						r = {}
-						r[func] = f[1]
-						for arg in f[2...]
-							for k, v of base.eval.call(this, arg)
-								r[k] = v
-						r
-					else
-						func.call(this, f[1...]...)
-			else if typeof f == 'string' then this[f]
-			else f
-
-		"fn": (params, exprs...) ->
-			lscope = this
-			params = params[1...] # remove 'list' tag, auto-quote
-			return (args...) ->
-				# evaluate params in original scope
-				map = {}
-				for p, i in params then map[p] = base.eval.call(this, args[i])
-				# evaluate func in new scope
-				s = new Scope(lscope, map)
-				for expr in exprs[0...-1] then base.eval.call(s, expr) 
-				return if exprs.length then base.eval.call(s, exprs[exprs.length-1]) else null
-
-		"macro": (params, exprs...) ->
-			lscope = this
-			params = params[1...] # remove 'list' tag, auto-quote
-			return (args...) ->
-				# name params
-				map = {}
-				for p, i in params then map[p] = args[i]
-				# evaluate func in new scope
-				s = new Scope(lscope, map)
-				for expr in exprs[0...-1] then base.eval.call(s, expr) 
-				if exprs.length
-					res = base.eval.call(s, exprs[exprs.length-1])
-					return eval(this, res)
-				else
-					return null
-
-		"map": (f, expr) ->
-			f = base.eval.call(this, f)
-			expr = base.eval.call(this, expr)
-			if expr?.length
-				for v, i in expr then f.call(this, ['quote', v], ['quote', i])
+	toCoffee = (stat, tab = '') ->
+		str = ''
+		for c in stat[1...]
+			if typeof c == 'object' and c?.constructor == Array
+				str += ', ->\n'
+				str += toCoffee c, tab + '    '
+				str += '\n' + tab
 			else
-				for k, v of expr then f.call(this, ['quote', v], ['quote', k])
-			return null
+				str += ', ' + JSON.stringify(c)
+		str = "#{tab}@ " + JSON.stringify(stat[0]) + str.replace /\n +\n/g, '\n'
+		return str
 
-		"combine": (exprs...) ->
+	src = """->\n"""
+	for stat in exports.parse(code)
+		src += toCoffee(stat, '    ') + '\n'
+
+	return eval require('coffee-script').compile src, bare: yes
+
+exports.eval = (code) ->
+
+	Context = (par) ->
+		if par? then f = (->); f.prototype = par; vars = new f
+		else vars = {}
+		c = (fn, args...) -> 
+			if not vars[fn]? then throw Error 'No function by the name ' + fn
+			fn = vars[fn]
+			if fn.__macro then fn.apply c, args
+			else fn.apply c, (c.eval(arg) for arg in args)
+		c.eval = (v) ->
+			if typeof v == 'function' then v.apply(@)
+			else if typeof v == 'string' then @vars[v]
+			else v
+		c.quote = (v) ->
+			if typeof v == 'function' then v.call (args...) -> c.quote(arg) for arg in args
+			else v
+		c.vars = vars
+		return c
+
+	macro = (f) -> f.__macro = yes; f
+
+	exports.compile(code).call Context
+		'fn': macro (args, stats...) ->
+			args = @quote(args)?[1...] or []
+			ctx = @
+			f = (vals...) ->
+				ctx2 = Context(ctx.vars)
+				for arg, i in args
+					ctx2.vars[arg] = vals[i]
+				vals = ((ctx2.eval stat) for stat in stats)
+				return vals[vals.length - 1]
+			return f
+		'macro': macro (args, stats...) ->
+			f = @.vars['fn'].call @, args, stats...
+			m = macro (args...) ->
+				code = f.apply @, args
+				return @.vars['eval'].call @, code
+			return m
+		'eval': (call) -> @ call...
+		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
+		'quote': macro (arg) -> @quote arg
+		'list': (args...) -> args
+		'atom?': macro (arg) -> typeof arg == 'string'
+		'first': (list) -> list?[0]
+		'rest': (list) -> list?[1...]
+		'concat': (v, list) -> [v].concat list
+		'empty?': (list) -> not list?.length
+		'=': macro (str, v) ->
+			str = @quote(str)
+			if Object.hasOwnProperty @vars, str
+				throw new Error 'Cannot reassign variable in this scope: ' + str
+			@vars[str] = @eval v
+		'==': (a, b) -> a == b
+		'+': (a, b) -> a + b
+		'-': (a, b) -> a - b
+		'/': (a, b) -> a / b
+		'*': (a, b) -> a * b
+		'%': (a, b) -> a % b
+		'map': (f, expr) -> (f(v, i) for v, i in expr)
+		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
+		'combine': (exprs...) ->
 			ret = {}
 			for expr in exprs
-				for k, v of base.eval.call(this, expr) then ret[k] = v
+				for k, v of expr then ret[k] = v
 			return ret
-
-		"=": (n, e) ->
-			if this[n]? then throw new Error 'Cannot reassign variable'
-			this[n] = base.eval.call this, e
-		"-": (a, b) -> base.eval.call(this, a) - base.eval.call(this, b)
-		"+": (a, b) -> base.eval.call(this, a) + base.eval.call(this, b)
-
-		"print": (args...) ->
-			console.log (JSON.stringify(base.eval.call(this, arg)) for arg in args)...
-	
-	res = parse(code)
-	for stat in res
-		base.eval stat
+		'print': (args...) -> console.log args...
 
 #######################################################################
 # Command line
 #######################################################################
 
-if process.argv.length < 3
-	console.error 'Please specify a file'
-	process.exit 1
+if require.main == module
+	if process.argv.length < 3
+		process.stdin.resume()
+		process.stdin.setEncoding "utf8"
+		process.stdout.write "> "
+		process.stdin.on "data", (chunk) ->
+			try
+				console.log exports.eval chunk
+			catch e
+				console.error e
+			process.stdout.write "> "
 
-do ->
-	fs.readFile process.argv[2], 'utf-8', (err, code) ->
-		if err
-			console.error "Could not open file: %s", err
-			process.exit 1
+	else
+		fs.readFile process.argv[2], 'utf-8', (err, code) ->
+			if err
+				console.error "Could not open file: %s", err
+				process.exit 1
 
-		execScript code
+			exports.eval code

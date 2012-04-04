@@ -1,5 +1,6 @@
 fib = fn: [n]
 	calc-fib = fn: [n a b]
+		print: "Fib:", n a b
 		if: (n == 0)
 			a 
 			calc-fib: (n - 1) b (a + b)
