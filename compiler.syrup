@@ -1,0 +1,29 @@
+chunker = {
+	"leftbracket": /^\[/
+	"rightbracket": /^\]/
+	"leftparen": /^\(/
+	"rightparen": /^\)[;:]?/
+	"leftbrace": /^\{/
+	"rightbrace": /^\}/
+	"quote": /^`/
+	"indent": /^\n[\t ]*/
+	"string": /^('[^']*'|"[^"]*")[:]?/
+	"callargs": /^[a-zA-Z_?=+-\/*!]+[:]/
+	"call": /^[a-zA-Z_?=+\-\/*!\.]+[;](?!\b)/
+	"atom": /^[a-zA-Z_?=+\-\/*!\.]+/
+	"comma": /^,/
+	"null": /^null/
+	"bool": /^true|^false/
+	"number": /^[0-9+]+/
+	"comment": /^\#[^\n]+/
+	}
+
+exports.tokenize = fn: [code]
+	loop: [code, tokens = []]
+		patt = first: chunker, fn: [patt] patt.matches: c2
+		assert: patt, 'Invalid code'
+		[token] = patt.exec: c2
+		unless: c2.length, tokens
+			recur:
+				code.substr: token.length;.replace: /^[\t ]+, ''
+				{tokens, [[k, token]]}

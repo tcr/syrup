@@ -19,8 +19,8 @@ chunker =
 	indent: /^\n[\t ]*/
 	string: /^('[^']*'|"[^"]*")[:]?/
 	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
-	call: /^[a-zA-Z_?=+\-\/*!]+[;](?!\b)/
-	atom: /^[a-zA-Z_?=+\-\/*!]+/
+	call: /^[a-zA-Z_?=+\-\/*!\.]+[;](?!\b)/
+	atom: /^[a-zA-Z_?=+\-\/*!\.]+/
 	comma: /^,/
 	null: /^null/
 	bool: /^true|^false/
@@ -153,7 +153,7 @@ exports.parse = (code) ->
 			return false
 
 		# Check if subsequent token is infix
-		if at('atom') and tokens[i][1].match /^[+\-\/*=]+/
+		if at('atom') and tokens[i][1].match /^[+\-\/*=\.]+/
 			op = tokens[i][1]; i++
 			left = top().pop()
 			unless parseExpression()
@@ -165,9 +165,10 @@ exports.parse = (code) ->
 
 	parseList()
 
-	#console.log 'Parse tree:'
-	#console.log(util.inspect(res, no, null))
-	#console.log '------------'
+	->
+		console.log 'Parse tree:'
+		console.log(util.inspect(res, no, null))
+		console.log '------------'
 
 	return res
 
@@ -180,14 +181,14 @@ exports.compile = (code) ->
 
 	toCoffee = (stat, tab = '') ->
 		str = ''
-		for c in stat[1...]
+		for c in stat
 			if typeof c == 'object' and c?.constructor == Array
 				str += ', ->\n'
 				str += toCoffee c, tab + '    '
 				str += '\n' + tab
 			else
 				str += ', ' + JSON.stringify(c)
-		str = "#{tab}@ " + JSON.stringify(stat[0]) + str.replace /\n +\n/g, '\n'
+		str = "#{tab}@ " + str.substr(2).replace /\n +\n/g, '\n'
 		return str
 
 	src = """->\n"""
@@ -202,8 +203,11 @@ exports.eval = (code) ->
 		if par? then f = (->); f.prototype = par; vars = new f
 		else vars = {}
 		c = (fn, args...) -> 
-			if not vars[fn]? then throw Error 'No function by the name ' + fn
-			fn = vars[fn]
+			fn = c.eval(fn)
+			if typeof fn == 'string'
+				ret = {}; ret[fn] = c.eval(args[0])
+				return vars['combine'] ret, (c.eval(arg) for arg in args[1...])
+			if not fn? then throw Error 'Cannot invoke null function.'
 			if fn.__macro then fn.apply c, args
 			else fn.apply c, (c.eval(arg) for arg in args)
 		c.eval = (v) ->
@@ -255,6 +259,7 @@ exports.eval = (code) ->
 		'/': (a, b) -> a / b
 		'*': (a, b) -> a * b
 		'%': (a, b) -> a % b
+		'.': macro (a, b) -> @eval(a)?[@quote(b)]
 		'map': (f, expr) -> (f(v, i) for v, i in expr)
 		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
 		'combine': (exprs...) ->
@@ -262,7 +267,9 @@ exports.eval = (code) ->
 			for expr in exprs
 				for k, v of expr then ret[k] = v
 			return ret
+		'new': (Obj, args...) -> (new Obj(args...))
 		'print': (args...) -> console.log args...
+		'global': global
 
 #######################################################################
 # Command line

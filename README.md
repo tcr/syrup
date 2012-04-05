@@ -9,6 +9,14 @@
 
     print: fib: 10
 
+From the command line:
+
+    coffee syrup.coffee examples/fib.syrup
+
+And for a (primitive) REPL:
+
+    coffee syrup.coffee
+
 ## Syntax
 
 Syrup is whitespace-significant. Function calls are made by a colon
@@ -37,19 +45,19 @@ Quoting uses \`.
 
     print: `apples                 # prints "apples"
 
-Infix notation is supported for arithmetic operations
-and for the assign operator:
+Infix notation is supported for arithmetic operators
+and the assign operator:
 
-    5 + 6                          # these two lines are
-    (+: 5 6)                       # equivalent
-    test = fn: [] print: 'hi'      # declares the function 'test'
+    5 + 6                          # these two lines...
+    +: 5 6                         # ...are equivalent.
+    test = fn: [] print: 'hi'      # declares a lambda and assign it to 'test'
 
 Macros are supported:
 
     unless = macro: [cond t f]
       [`if cond f t]
 
-    print: unless: true "false value" "true value"
+    print: unless: true "falsy" "truthy"
 
 Object literals can be defined using quoted strings or string variables
 as keys (as in python). Any arguments after the first passed to a string
@@ -58,9 +66,13 @@ curly-braces combine all listed objects into one.
  
     "a": 1                         # JSON: {"a": 1}
     ("some" + "key"): "val"        # JSON: {"somekey": "val"}
-    obj = "b": 2 "c": 3            # parses to ("b" 2 ("c" 3)) and JSON: {"b": 2, "c": 3}
-    obj2 = {"a": 1, obj}           # parses to (combine ("a", 1) obj) and JSON: {"a": 1, "b": 2, "c": 3}
+    obj = "b": 2 "c": 3            # parses to ("b" 2 ("c" 3)), equals {"b": 2, "c": 3}
+    obj2 = {"a": 1, obj}           # parses to (combine ("a", 1) obj), equals {"a": 1, "b": 2, "c": 3}
 
 ## TODO
 
 REPL, and lots more bikeshedding.
+
+## License
+
+Syrup is released under the MIT License.
