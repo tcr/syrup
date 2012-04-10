@@ -24,7 +24,7 @@ And for a REPL:
 Syrup is whitespace-significant. Function calls are made by a colon
 following an atom. All subsequent arguments on a line are passed to the
 function until a newline of the same indentation, the end of a parenthetical,
-or a period `.`
+or a semicolon `;`
 
 ```coffee-script
 print: "Cool language x" 5000  # Parses as (print "Cool language x" 5000)
@@ -86,9 +86,12 @@ key: "val"                     # JSON: {"somekey": "val"}
 obj = "b": 2 "c": 3            # parses to ("b" 2 ("c" 3)), equals {"b": 2, "c": 3}
 obj2 = {"a": 1, obj}           # parses to (combine ("a", 1) obj), equals {"a": 1, "b": 2, "c": 3}
 ```
-## TODO
 
-REPL, and lots more bikeshedding.
+## Roadmap
+
+* Lots more bikeshedding.
+* Option to write Node.js scripts in syrup.
+* Rewrite compiler in Syrup.
 
 ## License
 
