@@ -4,6 +4,9 @@ fs = require 'fs'
 Array.isArray = (obj) -> !!(obj and obj.concat and obj.unshift and not obj.callee)
 Object.hasOwnProperty = (obj, prop) -> {}.hasOwnProperty.call(obj, prop)
 
+DEBUG_PARSE_TREE = no
+DEBUG_JAVASCRIPT = yes
+
 #######################################################################
 # Parser
 #######################################################################
@@ -18,9 +21,9 @@ chunker =
 	quote: /^`/
 	indent: /^\n[\t ]*/
 	string: /^('[^']*'|"[^"]*")[:]?/
-	callargs: /^[a-zA-Z_?=+-\/*!]+[:]/
-	call: /^[a-zA-Z_?=+\-\/*!\.]+[;](?!\b)/
-	atom: /^[a-zA-Z_?=+\-\/*!\.]+/
+	callargs: /^[a-zA-Z_?!+\-\/*=\.]+[:]/
+	call: /^[a-zA-Z_?!+\-\/*=\.]+[;](?!\b)/
+	atom: /^([a-zA-Z_?!+\-\/*=\.]+)/
 	comma: /^,/
 	null: /^null/
 	bool: /^true|^false/
@@ -145,7 +148,11 @@ exports.parse = (code) ->
 			top().push token[1] == 'true'
 		else if at 'atom'
 			token = next()
-			top().push token[1]
+			[l, props...] = token[1].split('.')
+			for prop in props
+				if not prop then throw new Error 'Invalid dot operator'
+				l = ['.', l, prop]
+			top().push l
 		else if at 'number'
 			token = next()
 			top().push Number(token[1])
@@ -165,7 +172,7 @@ exports.parse = (code) ->
 
 	parseList()
 
-	->
+	if DEBUG_PARSE_TREE
 		console.log 'Parse tree:'
 		console.log(util.inspect(res, no, null))
 		console.log '------------'
@@ -176,100 +183,85 @@ exports.parse = (code) ->
 # Evaluator
 #######################################################################
 
-exports.compile = (code) ->
-	# Compile to CoffeeScript.
+exports.Context = (par) ->
+	if par? then f = (->); f.prototype = par; vars = new f
+	else vars = {}
 
-	toCoffee = (stat, tab = '') ->
-		str = ''
-		for c in stat
-			if typeof c == 'object' and c?.constructor == Array
-				str += ', ->\n'
-				str += toCoffee c, tab + '    '
-				str += '\n' + tab
-			else
-				str += ', ' + JSON.stringify(c)
-		str = "#{tab}@ " + str.substr(2).replace /\n +\n/g, '\n'
-		return str
-
-	src = """->\n"""
-	for stat in exports.parse(code)
-		src += toCoffee(stat, '    ') + '\n'
-
-	return eval require('coffee-script').compile src, bare: yes
-
-exports.eval = (code) ->
-
-	Context = (par) ->
-		if par? then f = (->); f.prototype = par; vars = new f
-		else vars = {}
-		c = (fn, args...) -> 
+	c = @
+	@eval = (v) ->
+		if Array.isArray(v)
+			[fn, args...] = v
 			fn = c.eval(fn)
 			if typeof fn == 'string'
 				ret = {}; ret[fn] = c.eval(args[0])
-				return vars['combine'] ret, (c.eval(arg) for arg in args[1...])
+				return vars['combine'] ret, (c.eval(arg) for arg in args[1...])...
 			if not fn? then throw Error 'Cannot invoke null function.'
 			if fn.__macro then fn.apply c, args
 			else fn.apply c, (c.eval(arg) for arg in args)
-		c.eval = (v) ->
-			if typeof v == 'function' then v.apply(@)
-			else if typeof v == 'string' then @vars[v]
-			else v
-		c.quote = (v) ->
-			if typeof v == 'function' then v.call (args...) -> c.quote(arg) for arg in args
-			else v
-		c.vars = vars
-		return c
+		else if typeof v == 'string' then @vars[v]
+		else v
+	@quote = (v) ->
+		if typeof v == 'function' then v.call (args...) -> c.quote(arg) for arg in args
+		else v
+	@vars = vars
+	return this
 
-	macro = (f) -> f.__macro = yes; f
+macro = (f) -> f.__macro = yes; f
 
-	exports.compile(code).call Context
-		'fn': macro (args, stats...) ->
-			args = @quote(args)?[1...] or []
-			ctx = @
-			f = (vals...) ->
-				ctx2 = Context(ctx.vars)
-				for arg, i in args
-					ctx2.vars[arg] = vals[i]
-				vals = ((ctx2.eval stat) for stat in stats)
-				return vals[vals.length - 1]
-			return f
-		'macro': macro (args, stats...) ->
-			f = @.vars['fn'].call @, args, stats...
-			m = macro (args...) ->
-				code = f.apply @, args
-				return @.vars['eval'].call @, code
-			return m
-		'eval': (call) -> @ call...
-		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
-		'quote': macro (arg) -> @quote arg
-		'list': (args...) -> args
-		'atom?': macro (arg) -> typeof arg == 'string'
-		'first': (list) -> list?[0]
-		'rest': (list) -> list?[1...]
-		'concat': (v, list) -> [v].concat list
-		'empty?': (list) -> not list?.length
-		'=': macro (str, v) ->
-			str = @quote(str)
-			if Object.hasOwnProperty @vars, str
-				throw new Error 'Cannot reassign variable in this scope: ' + str
-			@vars[str] = @eval v
-		'==': (a, b) -> a == b
-		'+': (a, b) -> a + b
-		'-': (a, b) -> a - b
-		'/': (a, b) -> a / b
-		'*': (a, b) -> a * b
-		'%': (a, b) -> a % b
-		'.': macro (a, b) -> @eval(a)?[@quote(b)]
-		'map': (f, expr) -> (f(v, i) for v, i in expr)
-		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
-		'combine': (exprs...) ->
-			ret = {}
-			for expr in exprs
-				for k, v of expr then ret[k] = v
-			return ret
-		'new': (Obj, args...) -> (new Obj(args...))
-		'print': (args...) -> console.log args...
-		'global': global
+exports.DefaultContext = -> new exports.Context
+	'fn': macro (args, stats...) ->
+		args = @quote(args)?[1...] or []
+		ctx = @
+		f = (vals...) ->
+			ctx2 = Context(ctx.vars)
+			for arg, i in args
+				ctx2.vars[arg] = vals[i]
+			vals = ((ctx2.eval stat) for stat in stats)
+			return vals[vals.length - 1]
+		return f
+	'macro': macro (args, stats...) ->
+		f = @vars['fn'].call @eval, args, stats...
+		m = macro (args...) ->
+			code = f.apply @eval, args
+			return @vars['eval'].call @eval, code
+		return m
+	'eval': (call) -> @eval call...
+	'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
+	'quote': macro (arg) -> @quote arg
+	'list': (args...) -> args
+	'atom?': macro (arg) -> typeof arg == 'string'
+	'first': (list) -> list?[0]
+	'rest': (list) -> list?[1...]
+	'concat': (v, list) -> [v].concat list
+	'empty?': (list) -> not list?.length
+	'=': macro (str, v) ->
+		str = @quote(str)
+		if Object.hasOwnProperty @vars, str
+			throw new Error 'Cannot reassign variable in this scope: ' + str
+		@vars[str] = @eval v
+	'==': (a, b) -> a == b
+	'+': (a, b) -> a + b
+	'-': (a, b) -> a - b
+	'/': (a, b) -> a / b
+	'*': (a, b) -> a * b
+	'%': (a, b) -> a % b
+	'.': macro (a, b) -> @eval(a)[@quote(b)]
+	'map': (f, expr) -> (f(v, i) for v, i in expr)
+	'reduce': (f, expr) -> v for v, i in expr when f(v, i)
+	'combine': (exprs...) ->
+		ret = {}
+		for expr in exprs
+			for k, v of expr then ret[k] = v
+		return ret
+	'new': (Obj, args...) -> (new Obj(args...))
+	'print': (args...) -> console.log args...
+	'global': global
+
+exports.eval = (code, ctx = new Context) ->
+	ret = null
+	for stat in exports.parse(code)
+		ret = ctx.eval stat
+	return ret
 
 #######################################################################
 # Command line
@@ -277,15 +269,8 @@ exports.eval = (code) ->
 
 if require.main == module
 	if process.argv.length < 3
-		process.stdin.resume()
-		process.stdin.setEncoding "utf8"
-		process.stdout.write "> "
-		process.stdin.on "data", (chunk) ->
-			try
-				console.log exports.eval chunk
-			catch e
-				console.error e
-			process.stdout.write "> "
+		# Include REPL.
+		require './repl'
 
 	else
 		fs.readFile process.argv[2], 'utf-8', (err, code) ->

@@ -15,7 +15,7 @@ From the command line:
 
     coffee syrup.coffee examples/fib.syrup
 
-And for a (primitive) REPL:
+And for a REPL:
 
     coffee syrup.coffee
 
