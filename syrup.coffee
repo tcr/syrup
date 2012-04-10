@@ -151,7 +151,7 @@ exports.parse = (code) ->
 			[l, props...] = token[1].split('.')
 			for prop in props
 				if not prop then throw new Error 'Invalid dot operator'
-				l = ['.', l, prop]
+				l = ['.', l, ['quote', prop]]
 			top().push l
 		else if at 'number'
 			token = next()
@@ -211,6 +211,7 @@ exports.DefaultContext = ->
 		constructor: (@type, @args) ->
 
 	return new exports.Context
+		'eval': (call) -> @eval call...
 		'fn': macro (args, stats...) ->
 			if args?[0] != 'list' then throw new Error 'Parse error: function arguments must be list'
 			defaults = []
@@ -228,46 +229,24 @@ exports.DefaultContext = ->
 					ctx2.vars[arg] = vals[i] ? defaults[i]
 				vals = ((ctx2.eval stat) for stat in stats)
 				return vals[vals.length - 1]
+			f.parameters = args
 			return f
-		'loop': macro (args, stats...) ->
-			if args?[0] != 'list' then throw new Error 'Parse error: function arguments must be list'
-			defaults = []
-			args = for arg, i in args[1...]
-				if typeof arg != 'string'
-					if Array.isArray(arg) and arg[0] == '=' and arg.length == 3 and typeof arg[1] == 'string'
-						defaults[i] = @eval arg[2]
-						arg[1]
-					else throw new Error 'Parse error: invalid function argument definition'
-				else arg
-			ctx = @
-			f = (vals...) ->
-				loop
-					try
-						ctx2 = new exports.Context(ctx.vars)
-						for arg, i in args
-							ctx2.vars[arg] = vals[i] ? defaults[i]
-						vals = ((ctx2.eval stat) for stat in stats)
-						return vals[vals.length - 1]
-					catch e
-						unless e instanceof FlowControl then throw e
-						vals = e.args
-			return f (@vars[arg] for arg in args)...
-		'continue': (args...) -> throw new FlowControl 'continue', args
+		'do': (fn) -> fn (@vals[arg] for arg in (fn.parameters or []))...
 		'macro': macro (args, stats...) ->
-			f = @vars['fn'].call @eval, args, stats...
-			m = macro (args...) ->
-				code = f.apply @eval, args
-				return @vars['eval'].call @eval, code
+			f = @eval ['fn', args, stats...]
+			m = macro (args...) -> @eval f args...
 			return m
-		'eval': (call) -> @eval call...
-		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
 		'quote': macro (arg) -> arg
-		'list': (args...) -> args
 		'atom?': macro (arg) -> typeof arg == 'string'
+
+		# Lists.
+		'list': (args...) -> args
 		'first': (list) -> list?[0]
 		'rest': (list) -> list?[1...]
 		'concat': (v, list) -> [v].concat list
 		'empty?': (list) -> not list?.length
+		# Operators
+		'new': (Obj, args...) -> (new Obj(args...))
 		'=': macro (str, v) ->
 			if Object.hasOwnProperty @vars, str
 				throw new Error 'Cannot reassign variable in this scope: ' + str
@@ -278,7 +257,21 @@ exports.DefaultContext = ->
 		'/': (a, b) -> a / b
 		'*': (a, b) -> a * b
 		'%': (a, b) -> a % b
-		'.': macro (a, b) -> @eval(a)[b]
+		'.': (a, b) -> a[b]
+		'instanceof': (a, b) -> a instanceof b
+
+		# Flow/generation
+		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
+		'loop': macro (args, stats...) ->
+			fn = @eval ['fn', args, stats...]
+			vals = (@vars[arg] for arg in (fn.parameters or []))
+			loop
+				try
+					return fn vals...
+				catch e
+					unless e instanceof FlowControl then throw e
+					vals = e.args
+		'continue': (args...) -> throw new FlowControl 'continue', args
 		'map': (f, expr) -> (f(v, i) for v, i in expr)
 		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
 		'combine': (exprs...) ->
@@ -286,9 +279,10 @@ exports.DefaultContext = ->
 			for expr in exprs
 				for k, v of expr then ret[k] = v
 			return ret
-		'new': (Obj, args...) -> (new Obj(args...))
+
+		# Utility
 		'print': (args...) -> console.log args...
-		'global': global
+		'host': global
 
 exports.eval = (code, ctx = new exports.DefaultContext) ->
 	ret = null

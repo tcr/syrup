@@ -1,9 +1,8 @@
 unless = macro: [cond t f]
   [`if cond f t]
 
-loop = fn: [l, f]
-  f: first: l
+l = ['testing', 'macros', 'using', 'the example of unless vs if']
+loop: [l]
+  print: first: l
   unless: (empty?: rest: l)
-    loop: (rest: l) f
-
-loop: [5 6 7] (fn: [x] print: x)
+    continue: (rest: l)
