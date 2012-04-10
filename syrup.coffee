@@ -20,7 +20,8 @@ chunker =
 	rightbrace: /^\}/
 	quote: /^`/
 	indent: /^\n[\t ]*/
-	string: /^('[^']*'|"[^"]*")[:]?/
+	"string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/
+	"regex": /^\/([^\\\/]|\\\\|\\\/)*\//
 	callargs: /^[a-zA-Z_?!+\-\/*=\.]+[:]/
 	call: /^[a-zA-Z_?!+\-\/*=\.]+[;](?!\b)/
 	atom: /^([a-zA-Z_?!+\-\/*=\.]+)/
@@ -29,6 +30,8 @@ chunker =
 	bool: /^true|^false/
 	number: /^[0-9+]+/
 	comment: /^\#[^\n]+/
+
+chunker.regex
 
 exports.tokenize = (code) ->
 	# Parse tokens.
@@ -143,6 +146,10 @@ exports.parse = (code) ->
 				stack.push [l, indent]
 				parseList()
 				stack.pop()
+		else if at 'regex'
+			token = next()
+			str = token[1].substr(1, token[1].length - 2).replace '\\/', '/'
+			top().push ['regex', ['quote', str]]
 		else if at 'bool'
 			token = next()
 			top().push token[1] == 'true'
@@ -259,6 +266,7 @@ exports.DefaultContext = ->
 		'%': (a, b) -> a % b
 		'.': (a, b) -> a[b]
 		'instanceof': (a, b) -> a instanceof b
+		'regex': (str, flags) -> new RegExp str, flags
 
 		# Flow/generation
 		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f

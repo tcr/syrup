@@ -1,3 +1,7 @@
+# WORK IN PROGRESS COMPILER PORT TO SYRUP
+# Featuring such features like destructuring assignment
+# and actual method calls
+
 chunker = {
 	"leftbracket": /^\[/
 	"rightbracket": /^\]/
@@ -7,7 +11,8 @@ chunker = {
 	"rightbrace": /^\}/
 	"quote": /^`/
 	"indent": /^\n[\t ]*/
-	"string": /^('[^']*'|"[^"]*")[:]?/
+	"string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/
+	"regex": /^\/([^\\\/]|\\\\|\\\/)*\//
 	"callargs": /^[a-zA-Z_?=+-\/*!]+[:]/
 	"call": /^[a-zA-Z_?=+\-\/*!\.]+[;](?!\b)/
 	"atom": /^[a-zA-Z_?=+\-\/*!\.]+/
