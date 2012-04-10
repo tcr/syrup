@@ -200,9 +200,7 @@ exports.Context = (par) ->
 			else fn.apply c, (c.eval(arg) for arg in args)
 		else if typeof v == 'string' then @vars[v]
 		else v
-	@quote = (v) ->
-		if typeof v == 'function' then v.call (args...) -> c.quote(arg) for arg in args
-		else v
+	@quote = (v) -> v
 	@vars = vars
 	return this
 
@@ -214,15 +212,47 @@ exports.DefaultContext = ->
 
 	return new exports.Context
 		'fn': macro (args, stats...) ->
-			args = @quote(args)?[1...] or []
+			if args?[0] != 'list' then throw new Error 'Parse error: function arguments must be list'
+			defaults = []
+			args = for arg, i in args[1...]
+				if typeof arg != 'string'
+					if Array.isArray(arg) and arg[0] == '=' and arg.length == 3 and typeof arg[1] == 'string'
+						defaults[i] = @eval arg[2]
+						arg[1]
+					else throw new Error 'Parse error: invalid function argument definition'
+				else arg
 			ctx = @
 			f = (vals...) ->
 				ctx2 = new exports.Context(ctx.vars)
 				for arg, i in args
-					ctx2.vars[arg] = vals[i]
+					ctx2.vars[arg] = vals[i] ? defaults[i]
 				vals = ((ctx2.eval stat) for stat in stats)
 				return vals[vals.length - 1]
 			return f
+		'loop': macro (args, stats...) ->
+			if args?[0] != 'list' then throw new Error 'Parse error: function arguments must be list'
+			defaults = []
+			args = for arg, i in args[1...]
+				if typeof arg != 'string'
+					if Array.isArray(arg) and arg[0] == '=' and arg.length == 3 and typeof arg[1] == 'string'
+						defaults[i] = @eval arg[2]
+						arg[1]
+					else throw new Error 'Parse error: invalid function argument definition'
+				else arg
+			ctx = @
+			f = (vals...) ->
+				loop
+					try
+						ctx2 = new exports.Context(ctx.vars)
+						for arg, i in args
+							ctx2.vars[arg] = vals[i] ? defaults[i]
+						vals = ((ctx2.eval stat) for stat in stats)
+						return vals[vals.length - 1]
+					catch e
+						unless e instanceof FlowControl then throw e
+						vals = e.args
+			return f (@vars[arg] for arg in args)...
+		'continue': (args...) -> throw new FlowControl 'continue', args
 		'macro': macro (args, stats...) ->
 			f = @vars['fn'].call @eval, args, stats...
 			m = macro (args...) ->
@@ -231,7 +261,7 @@ exports.DefaultContext = ->
 			return m
 		'eval': (call) -> @eval call...
 		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
-		'quote': macro (arg) -> @quote arg
+		'quote': macro (arg) -> arg
 		'list': (args...) -> args
 		'atom?': macro (arg) -> typeof arg == 'string'
 		'first': (list) -> list?[0]
@@ -239,7 +269,6 @@ exports.DefaultContext = ->
 		'concat': (v, list) -> [v].concat list
 		'empty?': (list) -> not list?.length
 		'=': macro (str, v) ->
-			str = @quote(str)
 			if Object.hasOwnProperty @vars, str
 				throw new Error 'Cannot reassign variable in this scope: ' + str
 			@vars[str] = @eval v
@@ -249,7 +278,7 @@ exports.DefaultContext = ->
 		'/': (a, b) -> a / b
 		'*': (a, b) -> a * b
 		'%': (a, b) -> a % b
-		'.': macro (a, b) -> @eval(a)[@quote(b)]
+		'.': macro (a, b) -> @eval(a)[b]
 		'map': (f, expr) -> (f(v, i) for v, i in expr)
 		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
 		'combine': (exprs...) ->
@@ -260,22 +289,6 @@ exports.DefaultContext = ->
 		'new': (Obj, args...) -> (new Obj(args...))
 		'print': (args...) -> console.log args...
 		'global': global
-		'loop': macro (args, stats...) ->
-			args = @quote(args)?[1...] or []
-			ctx = @
-			f = (vals...) ->
-				loop
-					try
-						ctx2 = new exports.Context(ctx.vars)
-						for arg, i in args
-							ctx2.vars[arg] = vals[i]
-						vals = ((ctx2.eval stat) for stat in stats)
-						return vals[vals.length - 1]
-					catch e
-						unless e instanceof FlowControl then throw e
-						vals = e.args
-			return f (@vars[arg] for arg in args)...
-		'continue': (args...) -> throw new FlowControl 'continue', args
 
 exports.eval = (code, ctx = new exports.DefaultContext) ->
 	ret = null

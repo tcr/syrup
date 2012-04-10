@@ -91,8 +91,7 @@ Syrup's `loop` struct helps mimic the benefits of tail-call optimization.
 
 ```coffee-script
 range = fn: [i]
-  r = []
-  loop: [i, r]
+  loop: [i, r = []]
     if: (i == 0) r
       continue: (i - 1), concat: (i - 1), r
 
