@@ -1,0 +1,7 @@
+range = fn: [i]
+  r = []
+  loop: [i, r]
+    if: (i == 0) r
+      continue: (i - 1), concat: (i - 1), r
+
+print: range: 5                # [0, 1, 2, 3, 4]

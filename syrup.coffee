@@ -208,56 +208,76 @@ exports.Context = (par) ->
 
 macro = (f) -> f.__macro = yes; f
 
-exports.DefaultContext = -> new exports.Context
-	'fn': macro (args, stats...) ->
-		args = @quote(args)?[1...] or []
-		ctx = @
-		f = (vals...) ->
-			ctx2 = Context(ctx.vars)
-			for arg, i in args
-				ctx2.vars[arg] = vals[i]
-			vals = ((ctx2.eval stat) for stat in stats)
-			return vals[vals.length - 1]
-		return f
-	'macro': macro (args, stats...) ->
-		f = @vars['fn'].call @eval, args, stats...
-		m = macro (args...) ->
-			code = f.apply @eval, args
-			return @vars['eval'].call @eval, code
-		return m
-	'eval': (call) -> @eval call...
-	'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
-	'quote': macro (arg) -> @quote arg
-	'list': (args...) -> args
-	'atom?': macro (arg) -> typeof arg == 'string'
-	'first': (list) -> list?[0]
-	'rest': (list) -> list?[1...]
-	'concat': (v, list) -> [v].concat list
-	'empty?': (list) -> not list?.length
-	'=': macro (str, v) ->
-		str = @quote(str)
-		if Object.hasOwnProperty @vars, str
-			throw new Error 'Cannot reassign variable in this scope: ' + str
-		@vars[str] = @eval v
-	'==': (a, b) -> a == b
-	'+': (a, b) -> a + b
-	'-': (a, b) -> a - b
-	'/': (a, b) -> a / b
-	'*': (a, b) -> a * b
-	'%': (a, b) -> a % b
-	'.': macro (a, b) -> @eval(a)[@quote(b)]
-	'map': (f, expr) -> (f(v, i) for v, i in expr)
-	'reduce': (f, expr) -> v for v, i in expr when f(v, i)
-	'combine': (exprs...) ->
-		ret = {}
-		for expr in exprs
-			for k, v of expr then ret[k] = v
-		return ret
-	'new': (Obj, args...) -> (new Obj(args...))
-	'print': (args...) -> console.log args...
-	'global': global
+exports.DefaultContext = ->
+	class FlowControl
+		constructor: (@type, @args) ->
 
-exports.eval = (code, ctx = new Context) ->
+	return new exports.Context
+		'fn': macro (args, stats...) ->
+			args = @quote(args)?[1...] or []
+			ctx = @
+			f = (vals...) ->
+				ctx2 = new exports.Context(ctx.vars)
+				for arg, i in args
+					ctx2.vars[arg] = vals[i]
+				vals = ((ctx2.eval stat) for stat in stats)
+				return vals[vals.length - 1]
+			return f
+		'macro': macro (args, stats...) ->
+			f = @vars['fn'].call @eval, args, stats...
+			m = macro (args...) ->
+				code = f.apply @eval, args
+				return @vars['eval'].call @eval, code
+			return m
+		'eval': (call) -> @eval call...
+		'if': macro (test, t, f) -> if @eval test then @eval t else @eval f
+		'quote': macro (arg) -> @quote arg
+		'list': (args...) -> args
+		'atom?': macro (arg) -> typeof arg == 'string'
+		'first': (list) -> list?[0]
+		'rest': (list) -> list?[1...]
+		'concat': (v, list) -> [v].concat list
+		'empty?': (list) -> not list?.length
+		'=': macro (str, v) ->
+			str = @quote(str)
+			if Object.hasOwnProperty @vars, str
+				throw new Error 'Cannot reassign variable in this scope: ' + str
+			@vars[str] = @eval v
+		'==': (a, b) -> a == b
+		'+': (a, b) -> a + b
+		'-': (a, b) -> a - b
+		'/': (a, b) -> a / b
+		'*': (a, b) -> a * b
+		'%': (a, b) -> a % b
+		'.': macro (a, b) -> @eval(a)[@quote(b)]
+		'map': (f, expr) -> (f(v, i) for v, i in expr)
+		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
+		'combine': (exprs...) ->
+			ret = {}
+			for expr in exprs
+				for k, v of expr then ret[k] = v
+			return ret
+		'new': (Obj, args...) -> (new Obj(args...))
+		'print': (args...) -> console.log args...
+		'global': global
+		'loop': macro (args, stats...) ->
+			args = @quote(args)?[1...] or []
+			ctx = @
+			f = (vals...) ->
+				loop
+					try
+						ctx2 = new exports.Context(ctx.vars)
+						for arg, i in args
+							ctx2.vars[arg] = vals[i]
+						vals = ((ctx2.eval stat) for stat in stats)
+						return vals[vals.length - 1]
+					catch e
+						unless e instanceof FlowControl then throw e
+						vals = e.args
+			return f (@vars[arg] for arg in args)...
+		'continue': (args...) -> throw new FlowControl 'continue', args
+
+exports.eval = (code, ctx = new exports.DefaultContext) ->
 	ret = null
 	for stat in exports.parse(code)
 		ret = ctx.eval stat

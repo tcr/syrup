@@ -87,6 +87,18 @@ obj = "b": 2 "c": 3            # parses to ("b" 2 ("c" 3)), equals {"b": 2, "c":
 obj2 = {"a": 1, obj}           # parses to (combine ("a", 1) obj), equals {"a": 1, "b": 2, "c": 3}
 ```
 
+Syrup's `loop` struct helps mimic the benefits of tail-call optimization.
+
+```coffee-script
+range = fn: [i]
+  r = []
+  loop: [i, r]
+    if: (i == 0) r
+      continue: (i - 1), concat: (i - 1), r
+
+print: range: 5                # [0, 1, 2, 3, 4]
+```
+
 ## Roadmap
 
 * Lots more bikeshedding.
