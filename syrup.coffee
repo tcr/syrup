@@ -4,7 +4,7 @@ fs = require 'fs'
 Array.isArray = (obj) -> !!(obj and obj.concat and obj.unshift and not obj.callee)
 Object.hasOwnProperty = (obj, prop) -> {}.hasOwnProperty.call(obj, prop)
 
-DEBUG_PARSE_TREE = no
+DEBUG_PARSE_TREE = yes
 DEBUG_JAVASCRIPT = yes
 
 #######################################################################
@@ -14,24 +14,23 @@ DEBUG_JAVASCRIPT = yes
 chunker = 
 	leftbracket: /^\[/
 	rightbracket: /^\]/
-	leftparen: /^\(/
+	leftparen: 	/^\(/
 	rightparen: /^\)[;:]?/
-	leftbrace: /^\{/
+	leftbrace: 	/^\{/
 	rightbrace: /^\}/
-	quote: /^`/
-	indent: /^\n[\t ]*/
-	"string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/
-	"regex": /^\/([^\\\/]|\\\\|\\\/)*\//
-	callargs: /^[a-zA-Z_?!+\-\/*=\.]+[:]/
-	call: /^[a-zA-Z_?!+\-\/*=\.]+[;](?!\b)/
-	atom: /^([a-zA-Z_?!+\-\/*=\.]+)/
-	comma: /^,/
-	null: /^null/
-	bool: /^true|^false/
-	number: /^[0-9+]+/
-	comment: /^\#[^\n]+/
-
-chunker.regex
+	quote: 		/^`/
+	indent: 	/^\n[\t ]*/
+	"string": 	/^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/
+	"regex": 	/^\/(\\\/|[^\/])*\//
+	callargs: 	/^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[:]/
+	call: 		/^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[;]/
+	atom: 		/^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+/
+	comma: 		/^,/
+	semicolon:	/^;/
+	null: 		/^null/
+	bool: 		/^true|^false/
+	number: 	/^[0-9+]+/
+	comment: 	/^\#[^\n]+/
 
 exports.tokenize = (code) ->
 	# Parse tokens.
@@ -77,6 +76,9 @@ exports.parse = (code) ->
 					break
 			if at 'comma'
 				token = next()
+			if at 'semicolon'
+				token = next()
+				break
 			if not parseExpression() then break
 
 	parseExpression = ->
@@ -85,25 +87,7 @@ exports.parse = (code) ->
 		while at 'comment'
 			token = next()
 
-		if at 'call'
-			token = next()
-			name = token[1][0...-1]
-			top().push [name]
-		else if at 'callargs'
-			token = next()
-			name = token[1][0...-1]
-			top().push l = [name]
-			stack.push [l, indent]
-			parseList()
-			stack.pop()
-		else if at 'quote'
-			token = next()
-			l = ['quote']
-			top().push l
-			stack.push [l, indent]
-			parseExpression()
-			stack.pop()
-		else if at 'leftbrace'
+		if at 'leftbrace'
 			token = next()
 			l = ['combine']
 			top().push l
@@ -135,6 +119,17 @@ exports.parse = (code) ->
 			else if token[1][1] == ';'
 				l = [top().pop()]
 				top().push l
+
+		else if at 'quote'
+			token = next()
+			l = ['quote']
+			top().push l
+			stack.push [l, indent]
+			parseExpression()
+			stack.pop()
+		else if at 'number'
+			token = next()
+			top().push Number(token[1])
 		else if at 'string'
 			token = next()
 			isfunc = token[1].substr(-1) == ':'
@@ -153,21 +148,30 @@ exports.parse = (code) ->
 		else if at 'bool'
 			token = next()
 			top().push token[1] == 'true'
-		else if at 'atom'
+
+		else if at('atom') or at('call') or at('callargs')
 			token = next()
-			[l, props...] = token[1].split('.')
+			name = if token[0] == 'atom' then token[1] else token[1][0...-1]
+			[l, props...] = name.split('.')
+			method = unless token[0] == 'atom' then props.pop()
+			if l == '' then l = top().pop()
 			for prop in props
 				if not prop then throw new Error 'Invalid dot operator'
 				l = ['.', l, ['quote', prop]]
+			if token[0] != 'atom'
+				if method? then l = ['call', l, ['quote', method]]
+				else l = [l]
 			top().push l
-		else if at 'number'
-			token = next()
-			top().push Number(token[1])
+			if token[0] == 'callargs'
+				stack.push [l, indent]
+				parseList()
+				stack.pop()
+		
 		else
 			return false
 
 		# Check if subsequent token is infix
-		if at('atom') and tokens[i][1].match /^[+\-\/*=\.]+/
+		if at('atom') and tokens[i][1].match /^[+\-\/*=\.><]+/
 			op = tokens[i][1]; i++
 			left = top().pop()
 			unless parseExpression()
@@ -243,21 +247,33 @@ exports.DefaultContext = ->
 			f = @eval ['fn', args, stats...]
 			m = macro (args...) -> @eval f args...
 			return m
+		'call': (obj, meth, args...) -> obj[meth] args...
 		'quote': macro (arg) -> arg
 		'atom?': macro (arg) -> typeof arg == 'string'
 
 		# Lists.
 		'list': (args...) -> args
+		'pairs': (obj) -> [k, v] for k, v of obj
 		'first': (list) -> list?[0]
 		'rest': (list) -> list?[1...]
 		'concat': (v, list) -> [v].concat list
 		'empty?': (list) -> not list?.length
 		# Operators
 		'new': (Obj, args...) -> (new Obj(args...))
-		'=': macro (str, v) ->
-			if Object.hasOwnProperty @vars, str
-				throw new Error 'Cannot reassign variable in this scope: ' + str
-			@vars[str] = @eval v
+		'=': macro (left, v) ->
+			assign = (name, val) =>
+				if Object.hasOwnProperty @vars, name
+					throw new Error 'Cannot reassign variable in this scope: ' + name
+				@vars[name] = val
+			tryAssign = (left, v) =>
+				if Array.isArray(left) and left[0] == 'list'
+					for x, i in left[1...]
+						tryAssign x, v[i]
+				else if typeof left == 'string'
+					assign left, v
+				else
+					throw new Error 'Invalid assignment left hand side'
+			tryAssign left, @eval v
 		'==': (a, b) -> a == b
 		'+': (a, b) -> a + b
 		'-': (a, b) -> a - b
@@ -265,6 +281,7 @@ exports.DefaultContext = ->
 		'*': (a, b) -> a * b
 		'%': (a, b) -> a % b
 		'.': (a, b) -> a[b]
+		'>': (a, b) -> a > b
 		'instanceof': (a, b) -> a instanceof b
 		'regex': (str, flags) -> new RegExp str, flags
 
@@ -280,13 +297,17 @@ exports.DefaultContext = ->
 					unless e instanceof FlowControl then throw e
 					vals = e.args
 		'continue': (args...) -> throw new FlowControl 'continue', args
-		'map': (f, expr) -> (f(v, i) for v, i in expr)
-		'reduce': (f, expr) -> v for v, i in expr when f(v, i)
 		'combine': (exprs...) ->
 			ret = {}
 			for expr in exprs
 				for k, v of expr then ret[k] = v
 			return ret
+		'map': (f, expr) ->
+			unless Array.isArray(expr) then (f(v, i) for i, v of expr)
+			else (f(v, i) for v, i in expr)
+		'reduce': (f, expr) ->
+			unless Array.isArray(expr) then ([v, i] for i, v of expr when f(v, i))
+			else (v for v, i in expr when f(v, i))
 
 		# Utility
 		'print': (args...) -> console.log args...
