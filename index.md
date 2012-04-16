@@ -2,7 +2,7 @@
 layout: layout
 project: Syrup
 link: https://github.com/timcameronryan/syrup
-title: A syntactically-light LISP, written in CoffeeScript.
+title: A syntactically-pleasant LISP, written in CoffeeScript.
 ---
 
 ## Getting started with Syrup
