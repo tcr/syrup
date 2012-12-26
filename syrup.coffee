@@ -85,7 +85,10 @@ exports.parse = (code) ->
 		return unless tokens[i]
 
 		while at 'comment'
-			token = next()
+			while at 'comment'
+				token = next()
+			while at('indent')
+				next()
 
 		if at 'leftbrace'
 			token = next()
@@ -256,7 +259,7 @@ exports.DefaultContext = ->
 		'pairs': (obj) -> [k, v] for k, v of obj
 		'first': (list) -> list?[0]
 		'rest': (list) -> list?[1...]
-		'concat': (v, list) -> [v].concat list
+		'concat': (list, args...) -> list.concat(args)
 		'empty?': (list) -> not list?.length
 		# Operators
 		'new': (Obj, args...) -> (new Obj(args...))

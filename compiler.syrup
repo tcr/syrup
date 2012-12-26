@@ -28,10 +28,37 @@ tokenize = fn: [code]
 	loop: [code, tokens = []]
 		[patt, k] = first: reduce: (fn: [patt, k] patt.test: code) chunker
 		[token] = patt.exec: code
+		tokens2 = concat: tokens, [k, token]
 		if: code.length > token.length
 			continue:
-				code.substr: token.length ;.replace: /^[\t ]+/, ''
-				concat: [k, token], tokens
-			tokens
+				(code.substr: token.length).replace: /^[\t ]+/, ''
+				tokens2
+			tokens2
 
-print: tokenize: "print: 'hello'"
+parse = fn: [code]
+	tokens = tokenize: code
+	i = 0
+
+	# Return parse tree.
+	res = []
+	# Stack of current node, and indentation level
+	stack = [[res, -1]]
+	indent = 0
+
+	at = fn: [type]
+		if: tokens[i]
+			tokens[i][0] == type
+			false
+	peek = fn: [type]
+		if: tokens[i + 1]
+			tokens[i + 1][0] == type
+			false
+	next = fn: []
+		i = i + 1
+		tokens[i - 1]
+	top = fn: []
+		if: stack[stack.length - 1]
+			stack[stack.length - 1][0]
+			false
+
+parse: "print: 'hello'"
