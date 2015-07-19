@@ -24,6 +24,9 @@ chunker = {
 	"comment": 		/^\#[^\n]+/
 	}
 
+cleanReturns = fn: [str]
+	str.replace: /^[\t ]+/, ''
+
 tokenize = fn: [code]
 	loop: [code, tokens = []]
 		[patt, k] = first: reduce: (fn: [patt, k] patt.test: code) chunker

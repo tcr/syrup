@@ -33,9 +33,13 @@ var chunker = {
   "comment": /^\#[^\n]+/
 };
 
+var cleanReturns = function (str) {
+  return str.replace(/\r/g, '');
+}
+
 var tokenize = function (code) {
   var c2, k, m, patt, tokens;
-  c2 = code.replace(/\r/g, '');
+  c2 = cleanReturns(code);
   tokens = [];
   while (c2.length) {
     m = null;
@@ -62,27 +66,28 @@ var parse = function(code) {
   res = [];
   stack = [[res, -1]];
   indent = 0;
-  at = function(type) {
+  var at = function(type) {
     var ref;
     return ((ref = tokens[i]) != null ? ref[0] : void 0) === type;
   };
-  peek = function(type) {
+  var peek = function(type) {
     var ref;
     return ((ref = tokens[i + 1]) != null ? ref[0] : void 0) === type;
   };
-  next = function() {
+  var next = function() {
     var t;
     t = tokens[i];
     i++;
     return t;
   };
-  top = function() {
+  var top = function() {
     var ref;
     return (ref = stack[stack.length - 1]) != null ? ref[0] : void 0;
   };
-  parseList = function() {
+  var parseList = function() {
     var ref, results, token;
     results = [];
+
     while (i < tokens.length) {
       if (at('indent')) {
         if (peek('indent')) {
@@ -111,7 +116,7 @@ var parse = function(code) {
     }
     return results;
   };
-  parseExpression = function() {
+  var parseExpression = function() {
     var isfunc, j, l, left, len, method, name, op, prop, props, ref, right, str, token;
     if (!tokens[i]) {
       return;
@@ -235,16 +240,17 @@ var parse = function(code) {
     }
     return true;
   };
+
   parseList();
   if (DEBUG_PARSE_TREE) {
-    console.log('Parse tree:');
-    console.log(util.inspect(res, false, null));
-    console.log('------------');
+    // console.log('Parse tree:');
+    console.log(JSON.stringify(res, null, '  '));
+    // console.log('------------');
   }
   return res;
 };
 
-exports.Context = function(par) {
+var Context = function (par) {
   var c, f, vars;
   if (par != null) {
     f = (function() {});
@@ -254,6 +260,7 @@ exports.Context = function(par) {
     vars = {};
   }
   c = this;
+
   this["eval"] = function(v) {
     var arg, args, fn, ret;
     if (Array.isArray(v)) {
@@ -295,19 +302,22 @@ exports.Context = function(par) {
       return v;
     }
   };
+
   this.quote = function(v) {
     return v;
   };
+
   this.vars = vars;
+
   return this;
 };
 
-macro = function(f) {
+var macro = function(f) {
   f.__macro = true;
   return f;
 };
 
-exports.DefaultContext = function() {
+var DefaultContext = function() {
   var FlowControl;
   FlowControl = (function() {
     function FlowControl(type1, args1) {
@@ -371,6 +381,7 @@ exports.DefaultContext = function() {
       f.parameters = args;
       return f;
     }),
+
     'do': function(fn) {
       var arg;
       return fn.apply(null, (function() {
@@ -384,6 +395,7 @@ exports.DefaultContext = function() {
         return results;
       }).call(this));
     },
+
     'macro': macro(function() {
       var args, f, m, stats;
       args = arguments[0], stats = 2 <= arguments.length ? slice.call(arguments, 1) : [];
@@ -395,22 +407,27 @@ exports.DefaultContext = function() {
       });
       return m;
     }),
+
     'call': function() {
       var args, meth, obj;
       obj = arguments[0], meth = arguments[1], args = 3 <= arguments.length ? slice.call(arguments, 2) : [];
       return obj[meth].apply(obj, args);
     },
+
     'quote': macro(function(arg) {
       return arg;
     }),
+
     'atom?': macro(function(arg) {
       return typeof arg === 'string';
     }),
+
     'list': function() {
       var args;
       args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
       return args;
     },
+
     'pairs': function(obj) {
       var k, results, v;
       results = [];
@@ -420,20 +437,25 @@ exports.DefaultContext = function() {
       }
       return results;
     },
+
     'first': function(list) {
       return list != null ? list[0] : void 0;
     },
+
     'rest': function(list) {
       return list != null ? list.slice(1) : void 0;
     },
+
     'concat': function() {
       var args, list;
       list = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
       return list.concat(args);
     },
+
     'empty?': function(list) {
       return !(list != null ? list.length : void 0);
     },
+
     'new': function() {
       var Obj, args;
       Obj = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
@@ -443,6 +465,7 @@ exports.DefaultContext = function() {
         return Object(result) === result ? result : child;
       })(Obj, args, function(){});
     },
+
     '=': macro(function(left, v) {
       var assign, tryAssign;
       assign = (function(_this) {
@@ -473,36 +496,47 @@ exports.DefaultContext = function() {
       })(this);
       return tryAssign(left, this["eval"](v));
     }),
+
     '==': function(a, b) {
       return a === b;
     },
+
     '+': function(a, b) {
       return a + b;
     },
+
     '-': function(a, b) {
       return a - b;
     },
+
     '/': function(a, b) {
       return a / b;
     },
+
     '*': function(a, b) {
       return a * b;
     },
+
     '%': function(a, b) {
       return a % b;
     },
+
     '.': function(a, b) {
       return a[b];
     },
+
     '>': function(a, b) {
       return a > b;
     },
+
     'instanceof': function(a, b) {
       return a instanceof b;
     },
+
     'regex': function(str, flags) {
       return new RegExp(str, flags);
     },
+
     'if': macro(function(test, t, f) {
       if (this["eval"](test)) {
         return this["eval"](t);
@@ -510,6 +544,7 @@ exports.DefaultContext = function() {
         return this["eval"](f);
       }
     }),
+
     'loop': macro(function() {
       var arg, args, e, fn, stats, vals;
       args = arguments[0], stats = 2 <= arguments.length ? slice.call(arguments, 1) : [];
@@ -527,8 +562,7 @@ exports.DefaultContext = function() {
       while (true) {
         try {
           return fn.apply(null, vals);
-        } catch (_error) {
-          e = _error;
+        } catch (e) {
           if (!(e instanceof FlowControl)) {
             throw e;
           }
@@ -536,11 +570,13 @@ exports.DefaultContext = function() {
         }
       }
     }),
+
     'continue': function() {
       var args;
       args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
       throw new FlowControl('continue', args);
     },
+
     'combine': function() {
       var expr, exprs, j, k, len, ret, v;
       exprs = 1 <= arguments.length ? slice.call(arguments, 0) : [];
@@ -554,6 +590,7 @@ exports.DefaultContext = function() {
       }
       return ret;
     },
+
     'map': function(f, expr) {
       var i, j, len, results, results1, v;
       if (!Array.isArray(expr)) {
@@ -572,6 +609,7 @@ exports.DefaultContext = function() {
         return results1;
       }
     },
+
     'reduce': function(f, expr) {
       var i, j, len, results, results1, v;
       if (!Array.isArray(expr)) {
@@ -594,12 +632,14 @@ exports.DefaultContext = function() {
         return results1;
       }
     },
+
     'print': function() {
       var args;
       args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
       return console.log.apply(console, args);
     },
-    'host': global
+
+    'host': global,
   });
 };
 
@@ -620,6 +660,15 @@ var eval = function(code, ctx) {
 exports.parse = parse;
 exports.tokenize = tokenize;
 exports.eval = eval;
+exports.Context = Context;
+exports.DefaultContext = DefaultContext;
+
+// Load from compiler source.
+var ctx = new DefaultContext();
+require('./compiler.json').forEach(function (line) {
+  ctx.eval(line);
+})
+cleanReturns = ctx.vars.cleanReturns;
 
 if (require.main === module) {
   if (process.argv.length < 3) {
