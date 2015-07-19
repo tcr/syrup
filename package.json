@@ -1,0 +1,23 @@
+{
+  "name": "syrup",
+  "version": "1.0.0",
+  "description": "```coffee-script fib = fn: [n]     calc-fib = fn: [n a b]         if: (n == 0)             a              calc-fib: (n - 1) b (a + b)     calc-fib: n 0 1",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tcr/syrup.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tcr/syrup/issues"
+  },
+  "homepage": "https://github.com/tcr/syrup"
+}
