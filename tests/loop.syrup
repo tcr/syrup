@@ -1,0 +1,10 @@
+unless = macro: [cond t f]
+  [`if cond f t]
+
+print: '1..2'
+
+l = ['# comment', 'ok 1', 'ok 2']
+loop: [l]
+  print: first: l
+  unless: (empty?: rest: l)
+    continue: (rest: l)

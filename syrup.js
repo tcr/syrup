@@ -1,45 +1,39 @@
 var DEBUG_JAVASCRIPT, DEBUG_PARSE_TREE, chunker, fs, macro, util,
   slice = [].slice;
 
-util = require('util');
+var util = require('util');
+var fs = require('fs');
 
-fs = require('fs');
-
-Array.isArray = function(obj) {
-  return !!(obj && obj.concat && obj.unshift && !obj.callee);
-};
-
-Object.hasOwnProperty = function(obj, prop) {
+var hasOwnProperty = function(obj, prop) {
   return {}.hasOwnProperty.call(obj, prop);
 };
 
-DEBUG_PARSE_TREE = true;
+var DEBUG_PARSE_TREE = process.argv.indexOf('-T') != -1;
+var DEBUG_JAVASCRIPT = process.argv.indexOf('-D') != -1;
 
-DEBUG_JAVASCRIPT = true;
-
-chunker = {
-  leftbracket: /^\[/,
-  rightbracket: /^\]/,
-  leftparen: /^\(/,
-  rightparen: /^\)[;:]?/,
-  leftbrace: /^\{/,
-  rightbrace: /^\}/,
-  quote: /^`/,
-  indent: /^\n[\t ]*/,
+var chunker = {
+  "leftbracket": /^\[/,
+  "rightbracket": /^\]/,
+  "leftparen": /^\(/,
+  "rightparen": /^\)[;:]?/,
+  "leftbrace": /^\{/,
+  "rightbrace": /^\}/,
+  "quote": /^`/,
+  "indent": /^\n[\t ]*/,
   "string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/,
   "regex": /^\/(\\\/|[^\/])*\//,
-  callargs: /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[:]/,
-  call: /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[;]/,
-  atom: /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+/,
-  comma: /^,/,
-  semicolon: /^;/,
+  "callargs": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[:]/,
+  "call": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[;]/,
+  "atom": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+/,
+  "comma": /^,/,
+  "semicolon": /^;/,
   "null": /^null/,
-  bool: /^true|^false/,
-  number: /^[0-9+]+/,
-  comment: /^\#[^\n]+/
+  "bool": /^true|^false/,
+  "number": /^[0-9+]+/,
+  "comment": /^\#[^\n]+/
 };
 
-exports.tokenize = function(code) {
+var tokenize = function (code) {
   var c2, k, m, patt, tokens;
   c2 = code.replace(/\r/g, '');
   tokens = [];
@@ -61,9 +55,9 @@ exports.tokenize = function(code) {
   return tokens;
 };
 
-exports.parse = function(code) {
+var parse = function(code) {
   var at, i, indent, next, parseExpression, parseList, peek, res, stack, tokens, top;
-  tokens = exports.tokenize(code);
+  tokens = tokenize(code);
   i = 0;
   res = [];
   stack = [[res, -1]];
@@ -453,7 +447,7 @@ exports.DefaultContext = function() {
       var assign, tryAssign;
       assign = (function(_this) {
         return function(name, val) {
-          if (Object.hasOwnProperty(_this.vars, name)) {
+          if (hasOwnProperty(_this.vars, name)) {
             throw new Error('Cannot reassign variable in this scope: ' + name);
           }
           return _this.vars[name] = val;
@@ -609,7 +603,7 @@ exports.DefaultContext = function() {
   });
 };
 
-exports["eval"] = function(code, ctx) {
+var eval = function(code, ctx) {
   var j, len, ref, ret, stat;
   if (ctx == null) {
     ctx = new exports.DefaultContext;
@@ -622,6 +616,10 @@ exports["eval"] = function(code, ctx) {
   }
   return ret;
 };
+
+exports.parse = parse;
+exports.tokenize = tokenize;
+exports.eval = eval;
 
 if (require.main === module) {
   if (process.argv.length < 3) {

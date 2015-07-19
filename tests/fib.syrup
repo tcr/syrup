@@ -1,0 +1,15 @@
+print: '1..1'
+
+fib = fn: [n]
+	calc-fib = fn: [n a b]
+		print: "# Fib:", n a b
+		if: (n == 0)
+			a 
+			calc-fib: (n - 1) b (a + b)
+	calc-fib: n 0 1
+
+a = fib: 10
+
+if: a == 55
+	print: 'ok 1'
+	print: 'not ok 1'
