@@ -11,60 +11,62 @@ var hasOwnProperty = function(obj, prop) {
 var DEBUG_PARSE_TREE = process.argv.indexOf('-T') != -1;
 var DEBUG_JAVASCRIPT = process.argv.indexOf('-D') != -1;
 
-var chunker = {
-  "leftbracket": /^\[/,
-  "rightbracket": /^\]/,
-  "leftparen": /^\(/,
-  "rightparen": /^\)[;:]?/,
-  "leftbrace": /^\{/,
-  "rightbrace": /^\}/,
-  "quote": /^`/,
-  "indent": /^\n[\t ]*/,
-  "string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/,
-  "regex": /^\/(\\\/|[^\/])*\//,
-  "callargs": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[:]/,
-  "call": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[;]/,
-  "atom": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+/,
-  "comma": /^,/,
-  "semicolon": /^;/,
-  "null": /^null/,
-  "bool": /^true|^false/,
-  "number": /^[0-9+]+/,
-  "comment": /^\#[^\n]+/
-};
+if (DEBUG_PARSE_TREE) {
+  var chunker = {
+    "leftbracket": /^\[/,
+    "rightbracket": /^\]/,
+    "leftparen": /^\(/,
+    "rightparen": /^\)[;:]?/,
+    "leftbrace": /^\{/,
+    "rightbrace": /^\}/,
+    "quote": /^`/,
+    "indent": /^\n[\t ]*/,
+    "string": /^("([^\\"]|\\\\|\\")*"|'([^\\']|\\\\|\\')*')[:]?/,
+    "regex": /^\/(\\\/|[^\/])*\//,
+    "callargs": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[:]/,
+    "call": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+[;]/,
+    "atom": /^(?![0-9])[0-9a-zA-Z_?!+\-\/*=><\.]+/,
+    "comma": /^,/,
+    "semicolon": /^;/,
+    "null": /^null/,
+    "bool": /^true|^false/,
+    "number": /^[0-9+]+/,
+    "comment": /^\#[^\n]+/
+  };
 
-var cleanReturns = function (str) {
-  return str.replace(/\r/g, '');
-}
-
-var tokenInner = function (c2, chunker, tokens) {
-  var m;
-  for (k in chunker) {
-    patt = chunker[k];
-    if (!(m = patt.exec(c2))) {
-      continue;
-    }
-    c2 = c2.substr(m[0].length).replace(/^[\t ]+/, '');
-    tokens.push([k, m[0]]);
-    break;
+  var cleanReturns = function (str) {
+    return str.replace(/\r/g, '');
   }
-  return [m, c2]
-}
 
-var tokenize = function (code) {
-  var c2, k, m, patt, tokens;
-  c2 = cleanReturns(code);
-  tokens = [];
-  while (c2.length) {
-    var _ = tokenInner(c2, chunker, tokens);
-    m = _[0];
-    c2 = _[1];
-    if (!m) {
-      throw new Error('Invalid code');
+  var tokenInner = function (c2, chunker, tokens) {
+    var m;
+    for (k in chunker) {
+      patt = chunker[k];
+      if (!(m = patt.exec(c2))) {
+        continue;
+      }
+      c2 = c2.substr(m[0].length).replace(/^[\t ]+/, '');
+      tokens.push([k, m[0]]);
+      break;
     }
+    return [m, c2]
   }
-  return tokens;
-};
+
+  var tokenize = function (code) {
+    var c2, k, m, patt, tokens;
+    c2 = cleanReturns(code);
+    tokens = [];
+    while (c2.length) {
+      var _ = tokenInner(c2, chunker, tokens);
+      m = _[0];
+      c2 = _[1];
+      if (!m) {
+        throw new Error('Invalid code');
+      }
+    }
+    return tokens;
+  };
+}
 
 var parse = function(code) {
   var at, i, indent, next, parseExpression, parseList, peek, res, stack, tokens, top;
@@ -684,7 +686,7 @@ require('./compiler.json').forEach(function (line) {
 })
 if (!DEBUG_PARSE_TREE) {
   cleanReturns = ctx.vars.cleanReturns;
-  tokenInner = ctx.vars.tokenInner;
+  tokenize = ctx.vars.tokenize;
   chunker = ctx.vars.chunker;
 }
 

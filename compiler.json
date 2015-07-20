@@ -285,160 +285,12 @@
   ],
   [
     "=",
-    "tokenize",
-    [
-      "fn",
-      [
-        "list",
-        "code"
-      ],
-      [
-        "loop",
-        [
-          "list",
-          "code",
-          [
-            "=",
-            "tokens",
-            [
-              "list"
-            ]
-          ]
-        ],
-        [
-          "=",
-          [
-            "list",
-            "patt",
-            "k"
-          ],
-          [
-            "first",
-            [
-              "reduce",
-              [
-                "fn",
-                [
-                  "list",
-                  "patt",
-                  "k"
-                ],
-                [
-                  "call",
-                  "patt",
-                  [
-                    "quote",
-                    "test"
-                  ],
-                  "code"
-                ]
-              ],
-              "chunker"
-            ]
-          ]
-        ],
-        [
-          "=",
-          [
-            "list",
-            "token"
-          ],
-          [
-            "call",
-            "patt",
-            [
-              "quote",
-              "exec"
-            ],
-            "code"
-          ]
-        ],
-        [
-          "=",
-          "tokens2",
-          [
-            "concat",
-            "tokens",
-            [
-              "list",
-              "k",
-              "token"
-            ]
-          ]
-        ],
-        [
-          "if",
-          [
-            ">",
-            [
-              ".",
-              "code",
-              [
-                "quote",
-                "length"
-              ]
-            ],
-            [
-              ".",
-              "token",
-              [
-                "quote",
-                "length"
-              ]
-            ]
-          ],
-          [
-            "continue",
-            [
-              "call",
-              [
-                "call",
-                "code",
-                [
-                  "quote",
-                  "substr"
-                ],
-                [
-                  ".",
-                  "token",
-                  [
-                    "quote",
-                    "length"
-                  ]
-                ]
-              ],
-              [
-                "quote",
-                "replace"
-              ],
-              [
-                "regex",
-                [
-                  "quote",
-                  "^[\\t ]+"
-                ]
-              ],
-              [
-                "quote",
-                ""
-              ]
-            ],
-            "tokens2"
-          ],
-          "tokens2"
-        ]
-      ]
-    ]
-  ],
-  [
-    "=",
     "tokenInner",
     [
       "fn",
       [
         "list",
         "c2",
-        "chunker",
         "tokens"
       ],
       [
@@ -567,11 +419,7 @@
                   "token"
                 ]
               ],
-              [
-                "list",
-                "m",
-                "c4"
-              ]
+              "c4"
             ]
           ],
           [
@@ -602,6 +450,78 @@
               ]
             ]
           ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "=",
+    "tokenize",
+    [
+      "fn",
+      [
+        "list",
+        "code"
+      ],
+      [
+        "=",
+        "c1",
+        [
+          "call",
+          "code",
+          [
+            "quote",
+            "replace"
+          ],
+          [
+            "regex",
+            [
+              "quote",
+              "^[\\t ]+"
+            ]
+          ],
+          [
+            "quote",
+            ""
+          ]
+        ]
+      ],
+      [
+        "=",
+        "tokens",
+        [
+          "list"
+        ]
+      ],
+      [
+        "loop",
+        [
+          "list",
+          [
+            "=",
+            "c2",
+            "c1"
+          ]
+        ],
+        [
+          "if",
+          [
+            ".",
+            "c2",
+            [
+              "quote",
+              "length"
+            ]
+          ],
+          [
+            "continue",
+            [
+              "tokenInner",
+              "c2",
+              "tokens"
+            ]
+          ],
+          "tokens"
         ]
       ]
     ]

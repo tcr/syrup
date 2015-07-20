@@ -27,18 +27,7 @@ chunker = {
 cleanReturns = fn: [str]
 	str.replace: /^[\t ]+/, ''
 
-tokenize = fn: [code]
-	loop: [code, tokens = []]
-		[patt, k] = first: reduce: (fn: [patt, k] patt.test: code) chunker
-		[token] = patt.exec: code
-		tokens2 = concat: tokens, [k, token]
-		if: code.length > token.length
-			continue:
-				(code.substr: token.length).replace: /^[\t ]+/, ''
-				tokens2
-			tokens2
-
-tokenInner = fn: [c2, chunker, tokens]
+tokenInner = fn: [c2, tokens]
 	loop: [mylist = pairs: chunker]
 		item = first: mylist
 		k = first: item
@@ -51,11 +40,20 @@ tokenInner = fn: [c2, chunker, tokens]
 				c3 = c2.substr: token.length
 				c4 = c3.replace: /^[\t ]+/, ''
 				tokens.push: [k, token]
-				[m, c4]
+				c4
 			if:
 				first: rest: mylist
 				continue: rest: mylist
 				throw: new: Error 'Invalid Code'
+
+tokenize = fn: [code]
+	c1 = code.replace: /^[\t ]+/, ''
+	tokens = []
+	loop: [c2 = c1]
+		if:
+			c2.length
+			continue: tokenInner: c2, tokens
+			tokens
 
 parse = fn: [code]
 	tokens = tokenize: code
