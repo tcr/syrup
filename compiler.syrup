@@ -38,6 +38,25 @@ tokenize = fn: [code]
 				tokens2
 			tokens2
 
+tokenInner = fn: [c2, chunker, tokens]
+	loop: [mylist = pairs: chunker]
+		item = first: mylist
+		k = first: item
+		patt = first: rest: item
+
+		if:
+			m = patt.exec: c2
+			do: fn: []
+				token = first: m
+				c3 = c2.substr: token.length
+				c4 = c3.replace: /^[\t ]+/, ''
+				tokens.push: [k, token]
+				[m, c4]
+			if:
+				first: rest: mylist
+				continue: rest: mylist
+				throw: new: Error 'Invalid Code'
+
 parse = fn: [code]
 	tokens = tokenize: code
 	i = 0
@@ -63,5 +82,3 @@ parse = fn: [code]
 		if: stack[stack.length - 1]
 			stack[stack.length - 1][0]
 			false
-
-parse: "print: 'hello'"

@@ -37,21 +37,28 @@ var cleanReturns = function (str) {
   return str.replace(/\r/g, '');
 }
 
+var tokenInner = function (c2, chunker, tokens) {
+  var m;
+  for (k in chunker) {
+    patt = chunker[k];
+    if (!(m = patt.exec(c2))) {
+      continue;
+    }
+    c2 = c2.substr(m[0].length).replace(/^[\t ]+/, '');
+    tokens.push([k, m[0]]);
+    break;
+  }
+  return [m, c2]
+}
+
 var tokenize = function (code) {
   var c2, k, m, patt, tokens;
   c2 = cleanReturns(code);
   tokens = [];
   while (c2.length) {
-    m = null;
-    for (k in chunker) {
-      patt = chunker[k];
-      if (!(m = patt.exec(c2))) {
-        continue;
-      }
-      c2 = c2.substr(m[0].length).replace(/^[\t ]+/, '');
-      tokens.push([k, m[0]]);
-      break;
-    }
+    var _ = tokenInner(c2, chunker, tokens);
+    m = _[0];
+    c2 = _[1];
     if (!m) {
       throw new Error('Invalid code');
     }
@@ -332,6 +339,7 @@ var DefaultContext = function() {
     'eval': function(call) {
       return this["eval"].apply(this, call);
     },
+
     'fn': macro(function() {
       var arg, args, ctx, defaults, f, i, stats;
       args = arguments[0], stats = 2 <= arguments.length ? slice.call(arguments, 1) : [];
@@ -497,6 +505,8 @@ var DefaultContext = function() {
       return tryAssign(left, this["eval"](v));
     }),
 
+    // Arithmetic
+
     '==': function(a, b) {
       return a === b;
     },
@@ -572,9 +582,7 @@ var DefaultContext = function() {
     }),
 
     'continue': function() {
-      var args;
-      args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-      throw new FlowControl('continue', args);
+      throw new FlowControl('continue', [].slice.call(arguments));
     },
 
     'combine': function() {
@@ -639,6 +647,12 @@ var DefaultContext = function() {
       return console.log.apply(console, args);
     },
 
+    'throw': function (expr) {
+      throw expr;
+    },
+
+    'Error': Error,
+
     'host': global,
   });
 };
@@ -668,7 +682,11 @@ var ctx = new DefaultContext();
 require('./compiler.json').forEach(function (line) {
   ctx.eval(line);
 })
-cleanReturns = ctx.vars.cleanReturns;
+if (!DEBUG_PARSE_TREE) {
+  cleanReturns = ctx.vars.cleanReturns;
+  tokenInner = ctx.vars.tokenInner;
+  chunker = ctx.vars.chunker;
+}
 
 if (require.main === module) {
   if (process.argv.length < 3) {
