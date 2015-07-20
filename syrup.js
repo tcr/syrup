@@ -125,6 +125,7 @@ var parse = function(code) {
     }
     return results;
   };
+  
   var parseExpression = function() {
     var isfunc, j, l, left, len, method, name, op, prop, props, ref, right, str, token;
     if (!tokens[i]) {

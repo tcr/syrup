@@ -255,36 +255,6 @@
   ],
   [
     "=",
-    "cleanReturns",
-    [
-      "fn",
-      [
-        "list",
-        "str"
-      ],
-      [
-        "call",
-        "str",
-        [
-          "quote",
-          "replace"
-        ],
-        [
-          "regex",
-          [
-            "quote",
-            "^[\\t ]+"
-          ]
-        ],
-        [
-          "quote",
-          ""
-        ]
-      ]
-    ]
-  ],
-  [
-    "=",
     "tokenInner",
     [
       "fn",
@@ -463,6 +433,38 @@
   ],
   [
     "=",
+    "while",
+    [
+      "macro",
+      [
+        "list",
+        "match",
+        "cond",
+        "body",
+        "else"
+      ],
+      [
+        "list",
+        [
+          "quote",
+          "loop"
+        ],
+        "match",
+        [
+          "list",
+          [
+            "quote",
+            "if"
+          ],
+          "cond",
+          "body",
+          "else"
+        ]
+      ]
+    ]
+  ],
+  [
+    "=",
     "tokenize",
     [
       "fn",
@@ -501,7 +503,7 @@
         ]
       ],
       [
-        "loop",
+        "while",
         [
           "list",
           [
@@ -511,25 +513,22 @@
           ]
         ],
         [
-          "if",
+          ".",
+          "c2",
           [
-            ".",
+            "quote",
+            "length"
+          ]
+        ],
+        [
+          "continue",
+          [
+            "tokenInner",
             "c2",
-            [
-              "quote",
-              "length"
-            ]
-          ],
-          [
-            "continue",
-            [
-              "tokenInner",
-              "c2",
-              "tokens"
-            ]
-          ],
-          "tokens"
-        ]
+            "tokens"
+          ]
+        ],
+        "tokens"
       ]
     ]
   ],

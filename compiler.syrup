@@ -24,9 +24,6 @@ chunker = {
 	"comment": 		/^\#[^\n]+/
 	}
 
-cleanReturns = fn: [str]
-	str.replace: /^[\t ]+/, ''
-
 tokenInner = fn: [c2, tokens]
 	loop: [mylist = pairs: chunker]
 		item = first: mylist
@@ -46,14 +43,15 @@ tokenInner = fn: [c2, tokens]
 				continue: rest: mylist
 				throw: new: host.Error 'Invalid Code'
 
+while = macro: [match cond body else]
+  [`loop match [`if cond body else]]
+
 tokenize = fn: [code]
 	c1 = code.replace: /^[\t ]+/, ''
 	tokens = []
-	loop: [c2 = c1]
-		if:
-			c2.length
-			continue: tokenInner: c2, tokens
-			tokens
+	while: [c2 = c1] (c2.length)
+		continue: tokenInner: c2, tokens
+		tokens
 
 parse = fn: [code]
 	tokens = tokenize: code
