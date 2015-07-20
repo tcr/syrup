@@ -442,7 +442,14 @@
               "throw",
               [
                 "new",
-                "Error",
+                [
+                  ".",
+                  "host",
+                  [
+                    "quote",
+                    "Error"
+                  ]
+                ],
                 [
                   "quote",
                   "Invalid Code"

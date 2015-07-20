@@ -44,7 +44,7 @@ tokenInner = fn: [c2, tokens]
 			if:
 				first: rest: mylist
 				continue: rest: mylist
-				throw: new: Error 'Invalid Code'
+				throw: new: host.Error 'Invalid Code'
 
 tokenize = fn: [code]
 	c1 = code.replace: /^[\t ]+/, ''
